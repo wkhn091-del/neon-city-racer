@@ -31,6 +31,9 @@ __pycache__/
 *.sln
 *.sw?
 
+# Playwright MCP artifacts
+.playwright-mcp/
+
 # OS / env
 .env
 .env.*
