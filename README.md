@@ -1,32 +1,34 @@
-# React + TypeScript + Vite
+# Neon City Racer
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+AAA-style street racing / open-district driving game built with **Vite + React + TypeScript**, **React Three Fiber**, **Rapier**, and Blender-exported Draco/WebP `.glb` assets.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Raycast vehicle physics (per-wheel suspension, drift, nitrous)
+- Stage 1: Neon downtown circuit (`stage1_city.glb`)
+- Stage 2: Mountain / coastal touge (`stage2_canyon.glb`)
+- AI traffic + sidewalk pedestrians
+- Free Drift multiplier & Time Attack modes
+- HDRI lighting, ACES tone mapping, bloom HUD
 
-## React Compiler
+## Controls
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Key | Action |
+|-----|--------|
+| WASD / Arrows | Drive |
+| Space | Drift |
+| Shift | Nitrous |
+| C | Camera (chase / hood / cinematic) |
 
-## Expanding the Oxlint configuration
+## Scripts
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
+npm run optimize-models
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Assets
+
+Models live in `public/models/` (Blender → glTF → `gltf-transform optimize`). HDRI from Poly Haven in `public/hdri/`.

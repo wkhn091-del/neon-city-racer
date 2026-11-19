@@ -33,6 +33,7 @@ __pycache__/
 
 # Playwright MCP artifacts
 .playwright-mcp/
+qa-*.png
 
 # OS / env
 .env
