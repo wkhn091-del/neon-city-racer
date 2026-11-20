@@ -8,6 +8,8 @@ import { Stage } from './Stage'
 import { HeroCar } from './HeroCar'
 import { GameCamera } from './GameCamera'
 import { OceanWater } from './OceanWater'
+import { Traffic } from './Traffic'
+import { Pedestrians } from './Pedestrians'
 import { useGameStore, type QualityPreset } from '../store/gameStore'
 import { getStageWaypoints } from '../track/waypoints'
 
@@ -103,6 +105,8 @@ export function GameCanvas() {
         <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60} numSolverIterations={8}>
           <Stage key={stage} stage={stage} />
           <HeroCar key={`hero-${stage}`} />
+          <Traffic stage={stage} playerPos={playerPos} />
+          <Pedestrians />
         </Physics>
         <GameCamera target={playerPos} />
         <PlayerPosSync playerPos={playerPos} />
