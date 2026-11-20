@@ -20,13 +20,13 @@ export type StageDef = {
 export const STAGE_LIST: StageDef[] = [
   {
     id: 'eternal_city',
-    name: 'Eternal City',
-    subtitle: 'Yokohama Neon District',
-    series: 'Night Circuit',
+    name: 'Coastal Garda',
+    subtitle: 'South Garda Circuit + Shoreline City',
+    series: 'Coastal Cup',
     modelUrl: '/models/world_map.glb',
-    targetSize: 600,
+    targetSize: 520,
     rotX: 0,
-    track: { cx: 0, cz: 0, rx: 180, rz: 160, y: 0.05 },
+    track: { cx: 0, cz: 0, rx: 190, rz: 90, y: 0.05 },
   },
   {
     id: 'eastern_bay',

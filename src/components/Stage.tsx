@@ -43,6 +43,12 @@ export function Stage({ stage }: { stage: StageId }) {
 
     let meshIndex = 0
     visual.traverse((obj) => {
+      // Invisible physics helpers stay in the GLB but must not render
+      if (/^Collider_/i.test(obj.name)) {
+        obj.visible = false
+        return
+      }
+
       const mesh = obj as THREE.Mesh
       if (!mesh.isMesh) return
       meshIndex++
@@ -58,15 +64,8 @@ export function Stage({ stage }: { stage: StageId }) {
           mat.map.colorSpace = THREE.SRGBColorSpace
           mat.map.anisotropy = 4
           mat.map.needsUpdate = true
-          // Photogrammetry night tiles read dark — lift via emissive map
-          if ('emissiveMap' in mat) {
-            mat.emissiveMap = mat.map
-            mat.emissive = new THREE.Color('#ffffff')
-            mat.emissiveIntensity = 0.55
-          }
         }
-        if (mat.color) mat.color.set('#ffffff')
-        if ('envMapIntensity' in mat) mat.envMapIntensity = 1.6
+        if ('envMapIntensity' in mat) mat.envMapIntensity = 1.35
         if ('roughness' in mat) mat.roughness = Math.min(mat.roughness ?? 1, 0.92)
         mat.needsUpdate = true
         return mat
@@ -74,21 +73,7 @@ export function Stage({ stage }: { stage: StageId }) {
       mesh.material = out.length === 1 ? out[0] : out
     })
 
-    let markers = extractWorldMarkers(visual)
-    // Prefer a near-center spawn so chase cam isn't staring off the photogrammetry tile
-    const spawn = markers.find((m) => m.kind === 'spawn')
-    if (spawn) {
-      const dist = Math.hypot(spawn.position.x, spawn.position.z)
-      if (dist > 120) {
-        const better =
-          markers
-            .filter((m) => m.kind === 'trafficA' || m.kind === 'dealership')
-            .sort((a, b) => Math.hypot(a.position.x, a.position.z) - Math.hypot(b.position.x, b.position.z))[0] ?? spawn
-        spawn.position.copy(better.position)
-        spawn.quaternion.copy(better.quaternion)
-        spawn.forward.copy(better.forward)
-      }
-    }
+    const markers = extractWorldMarkers(visual)
     setWorldMarkers(markers)
     ;(window as unknown as { __worldMarkers?: typeof markers }).__worldMarkers = markers
 
@@ -98,25 +83,16 @@ export function Stage({ stage }: { stage: StageId }) {
 
   const size = prepared.worldBox.getSize(new THREE.Vector3())
   const groundSize = Math.max(160, size.x, size.z) * 1.2
-  const { rx, rz } = def.track
-  const ringOuter = Math.max(rx, rz) * 1.15
-  const ringInner = Math.min(rx, rz) * 0.62
 
   return (
     <group>
-      {/* Driveable deck ONLY — no inverted trimesh colliders that bounce the car */}
+      {/* Invisible asphalt deck for Rapier until trimesh road colliders land in Phase 3 */}
       <RigidBody type="fixed" colliders="cuboid" position={[0, -0.35, 0]} friction={1.6} restitution={0}>
         <mesh visible={false}>
           <boxGeometry args={[groundSize, 0.7, groundSize]} />
           <meshBasicMaterial />
         </mesh>
       </RigidBody>
-
-      {/* Subtle road ring under the circuit (visual cue, not the whole void disc) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
-        <ringGeometry args={[ringInner, ringOuter, 72]} />
-        <meshStandardMaterial color="#3d4450" roughness={0.9} metalness={0.06} />
-      </mesh>
 
       <primitive object={prepared.visual} />
     </group>

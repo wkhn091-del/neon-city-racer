@@ -45,6 +45,7 @@ public/models/_optimized/
 public/models/stages/
 public/models/world_map_raw*.glb
 public/models/world_map_named.glb
+blender/*.blend1
 agent-tools/
 
 # OS / env
