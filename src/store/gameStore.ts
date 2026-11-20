@@ -6,7 +6,7 @@ export type CameraMode = 'chase' | 'hood' | 'cinematic'
 export type Screen = 'menu' | 'playing'
 export type QualityPreset = 'low' | 'medium' | 'high'
 export type PaintId = 'crimson' | 'midnight' | 'pearl' | 'lime'
-export type MenuTab = 'circuits' | 'garage' | 'options'
+export type MenuTab = 'circuits' | 'garage' | 'tuning' | 'options'
 
 export type { StageId }
 

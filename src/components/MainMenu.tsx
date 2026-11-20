@@ -1,5 +1,13 @@
 import { PAINT_COLORS, useGameStore, type MenuTab, type PaintId, type QualityPreset } from '../store/gameStore'
 import { CARS, type CarId } from '../garage/cars'
+import {
+  PAINT_FINISHES,
+  TUNING_LABELS,
+  TUNING_MAX_LEVEL,
+  UNDERGLOW_OPTIONS,
+  upgradeCost,
+  type TuningStat,
+} from '../garage/tuning'
 import { useGarageStore } from '../store/garageStore'
 import { STAGE_LIST, getStageDef } from '../world/stages'
 import { GarageShowroom } from './GarageShowroom'
@@ -9,8 +17,10 @@ const qualities: QualityPreset[] = ['low', 'medium', 'high']
 const TABS: { id: MenuTab; label: string }[] = [
   { id: 'circuits', label: 'Circuits' },
   { id: 'garage', label: 'Garage' },
+  { id: 'tuning', label: 'Tuning' },
   { id: 'options', label: 'Setup' },
 ]
+const TUNING_STATS: TuningStat[] = ['engine', 'tires', 'drift', 'nitro']
 
 const CIRCUIT_ART: Record<string, string> = {
   eternal_city: '/ui/circuit_eternal_city.jpg',
@@ -35,14 +45,21 @@ export function MainMenu() {
   const owned = useGarageStore((s) => s.owned)
   const activeCar = useGarageStore((s) => s.activeCar)
   const previewCar = useGarageStore((s) => s.previewCar)
+  const setups = useGarageStore((s) => s.setups)
   const setPreviewCar = useGarageStore((s) => s.setPreviewCar)
   const selectActiveCar = useGarageStore((s) => s.selectActiveCar)
   const buyCar = useGarageStore((s) => s.buyCar)
+  const upgradeStat = useGarageStore((s) => s.upgradeStat)
+  const setFinish = useGarageStore((s) => s.setFinish)
+  const setUnderglow = useGarageStore((s) => s.setUnderglow)
+  const setRimHue = useGarageStore((s) => s.setRimHue)
+  const setWindowTint = useGarageStore((s) => s.setWindowTint)
 
   const preview = CARS.find((c) => c.id === previewCar)!
   const ownsPreview = owned.includes(previewCar)
   const stageDef = getStageDef(stage)
   const activeCarDef = CARS.find((c) => c.id === activeCar) ?? preview
+  const setup = setups[previewCar]
 
   const drive = () => {
     if (ownsPreview) selectActiveCar(previewCar)
@@ -171,6 +188,125 @@ export function MainMenu() {
                   BUY / DRIVE · ${preview.price.toLocaleString()}
                 </button>
               )}
+            </div>
+          </section>
+        )}
+
+        {menuTab === 'tuning' && (
+          <section className="shell-card shell-card-scroll" aria-label="Tuning">
+            <div className="shell-card-head">
+              <h2>Tuning</h2>
+              <p>
+                {preview.name} · {ownsPreview ? 'owned' : 'preview only'}
+              </p>
+            </div>
+
+            <div className="car-strip compact">
+              {CARS.map((car) => (
+                <button
+                  key={car.id}
+                  type="button"
+                  className={`car-chip ${previewCar === car.id ? 'active' : ''}`}
+                  onClick={() => setPreviewCar(car.id as CarId)}
+                >
+                  <span className="car-chip-name">{car.name}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="tuning-block">
+              <h3>Performance</h3>
+              {TUNING_STATS.map((stat) => {
+                const level = setup[stat]
+                const cost = upgradeCost(stat, level)
+                const maxed = level >= TUNING_MAX_LEVEL
+                const meta = TUNING_LABELS[stat]
+                return (
+                  <div key={stat} className="tuning-row" data-stat={stat}>
+                    <div className="tuning-copy">
+                      <strong>{meta.title}</strong>
+                      <span>{meta.blurb}</span>
+                      <div className="tuning-pips" aria-label={`Level ${level} of ${TUNING_MAX_LEVEL}`}>
+                        {Array.from({ length: TUNING_MAX_LEVEL }, (_, i) => (
+                          <i key={i} className={i < level ? 'on' : ''} />
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="tuning-buy"
+                      disabled={!ownsPreview || maxed}
+                      onClick={() => {
+                        const res = upgradeStat(previewCar, stat)
+                        if (!res.ok) window.alert(res.reason ?? 'Cannot upgrade')
+                      }}
+                    >
+                      {maxed ? 'MAX' : `L${level} → L${level + 1} · $${cost.toLocaleString()}`}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="tuning-block">
+              <h3>Paint Finish</h3>
+              <div className="finish-row">
+                {PAINT_FINISHES.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className={setup.finish === f.id ? 'active' : ''}
+                    onClick={() => setFinish(previewCar, f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="tuning-block">
+              <h3>Neon Underglow</h3>
+              <div className="glow-row">
+                {UNDERGLOW_OPTIONS.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className={`glow-chip ${setup.underglow === g.id ? 'active' : ''}`}
+                    style={{ ['--glow' as string]: g.color }}
+                    onClick={() => setUnderglow(previewCar, g.id)}
+                    title={g.label}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="tuning-block">
+              <h3>Rim Paint</h3>
+              <label className="slider-row">
+                <span>Hue</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={setup.rimHue}
+                  onChange={(e) => setRimHue(previewCar, Number(e.target.value))}
+                />
+              </label>
+              <h3>Window Tint</h3>
+              <label className="slider-row">
+                <span>Tint</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={0.85}
+                  step={0.01}
+                  value={setup.windowTint}
+                  onChange={(e) => setWindowTint(previewCar, Number(e.target.value))}
+                />
+              </label>
             </div>
           </section>
         )}

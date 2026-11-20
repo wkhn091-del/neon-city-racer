@@ -4,17 +4,19 @@ import { useGLTF } from '@react-three/drei'
 import { CuboidCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { useControls } from '../hooks/useControls'
-import { PAINT_COLORS, useGameStore } from '../store/gameStore'
+import { useGameStore } from '../store/gameStore'
 import { useGarageStore } from '../store/garageStore'
 import { getCar } from '../garage/cars'
+import { applyCarVisuals, underglowColor } from '../garage/applyCarVisuals'
+import { tuningMultipliers } from '../garage/tuning'
 import { fitPlayableCar, sanitizeCarClone } from '../garage/sanitizeCar'
 import { EngineAudio } from '../audio/EngineAudio'
 import { getStageWaypoints, nearestWaypointIndex } from '../track/waypoints'
 import { getCachedWorldMarkers } from '../world/markerCache'
 import { getSpawnMarker } from '../world/markers'
-import { STREET_WHEELS, useRapierVehicle } from '../physics/useRapierVehicle'
+import { STREET_WHEELS, useRapierVehicle, type WheelInfo } from '../physics/useRapierVehicle'
 
-const MAX_STEER = Math.PI / 7
+const BASE_MAX_STEER = Math.PI / 7
 const ENGINE = 2400
 const BOOST_ENGINE = 1600
 const BRAKE = 18
@@ -39,19 +41,34 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
   const mode = useGameStore((s) => s.mode)
   const setTelemetry = useGameStore((s) => s.setTelemetry)
   const toggleCamera = useGameStore((s) => s.toggleCamera)
+  const setup = useGarageStore((s) => s.setups[activeCarId])
+  const mult = useMemo(() => tuningMultipliers(setup), [setup])
   const cashBanked = useRef(0)
-  const nitroRef = useRef(100)
+  const nitroRef = useRef(mult.nitroCapacity)
   const driftCombo = useRef(0)
   const skids = useRef<{ pos: THREE.Vector3; life: number }[]>([])
   const skidMesh = useRef<THREE.InstancedMesh>(null)
   const smokeMesh = useRef<THREE.InstancedMesh>(null)
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const flameRefs = useRef<THREE.Mesh[]>([])
+  const stageFlameRefs = useRef<THREE.Mesh[]>([])
+  const underglowLight = useRef<THREE.PointLight>(null)
+  const underglowDisc = useRef<THREE.Mesh>(null)
   const wheelsRef = useRef<(THREE.Object3D | null)[]>([null, null, null, null])
   const visualWheels = useRef<(THREE.Object3D | null)[]>([null, null, null, null])
   const snappedToMarker = useRef(false)
 
-  const { vehicleController } = useRapierVehicle(body, wheelsRef, STREET_WHEELS)
+  const tunedWheels = useMemo<WheelInfo[]>(() => {
+    return STREET_WHEELS.map((w) => ({
+      ...w,
+      suspensionRestLength: w.suspensionRestLength * mult.restLengthScale,
+      frictionSlip: w.frictionSlip * mult.frictionSlip,
+      position: w.position.clone(),
+      axleCs: w.axleCs.clone(),
+    }))
+  }, [mult.restLengthScale, mult.frictionSlip])
+
+  const { vehicleController } = useRapierVehicle(body, wheelsRef, tunedWheels)
 
   const car = useMemo(() => {
     const c = sanitizeCarClone(scene.clone(true))
@@ -70,27 +87,13 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
   }, [scene])
 
   useEffect(() => {
-    const color = new THREE.Color(PAINT_COLORS[paint])
-    car.traverse((obj) => {
-      const mesh = obj as THREE.Mesh
-      if (!mesh.isMesh) return
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-      mats.forEach((m) => {
-        const mat = m as THREE.MeshStandardMaterial
-        if (!mat?.isMeshStandardMaterial && !(mat as THREE.MeshPhysicalMaterial)?.isMeshPhysicalMaterial) return
-        if (mesh.name === 'Body' || mat.name?.toLowerCase().includes('paint')) {
-          mat.color.copy(color)
-          mat.metalness = 0.85
-          mat.roughness = 0.22
-          if ('clearcoat' in mat) {
-            ;(mat as THREE.MeshPhysicalMaterial).clearcoat = 1
-            ;(mat as THREE.MeshPhysicalMaterial).clearcoatRoughness = 0.12
-          }
-          mat.needsUpdate = true
-        }
-      })
-    })
-  }, [car, paint])
+    applyCarVisuals(car, setup, paint)
+  }, [car, setup, paint])
+
+  useEffect(() => {
+    nitroRef.current = Math.min(nitroRef.current, mult.nitroCapacity)
+    audio.setTurboVolume(mult.turboVolume)
+  }, [mult.nitroCapacity, mult.turboVolume, audio])
 
   useEffect(() => {
     void audio.ensure()
@@ -117,10 +120,9 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     const drifting = keys.current.drift
     const boosting = keys.current.boost && nitroRef.current > 0
 
-    if (boosting) nitroRef.current = Math.max(0, nitroRef.current - 28 * clampedDt)
-    else nitroRef.current = Math.min(100, nitroRef.current + 8 * clampedDt)
+    if (boosting) nitroRef.current = Math.max(0, nitroRef.current - mult.nitroDrain * clampedDt)
+    else nitroRef.current = Math.min(mult.nitroCapacity, nitroRef.current + mult.nitroRecharge * clampedDt)
 
-    // Snap once to Blender Empty spawn — downward Rapier raycast keeps tires flush
     if (!snappedToMarker.current) {
       const markerSpawn = getSpawnMarker(getCachedWorldMarkers())
       if (markerSpawn) {
@@ -130,7 +132,8 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
         const ray = new rapier.Ray(origin, { x: 0, y: -1, z: 0 })
         const hit = world.castRay(ray, 14, true, undefined, undefined, undefined, rb)
         const surfaceY = hit ? origin.y - hit.timeOfImpact : p.y
-        rb.setTranslation({ x: p.x, y: surfaceY + 0.55, z: p.z }, true)
+        const hover = 0.34 + tunedWheels[0].suspensionRestLength
+        rb.setTranslation({ x: p.x, y: surfaceY + hover, z: p.z }, true)
         rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
         rb.setAngvel({ x: 0, y: 0, z: 0 }, true)
         const yaw = Math.atan2(markerSpawn.forward.x, markerSpawn.forward.z)
@@ -138,7 +141,6 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
       }
     }
 
-    // Anti-explode / recovery
     const t0 = rb.translation()
     const v0 = rb.linvel()
     if (!Number.isFinite(t0.y) || t0.y > 40 || t0.y < -4 || Math.hypot(v0.x, v0.y, v0.z) > 90) {
@@ -151,10 +153,13 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
 
     const speed = Math.hypot(v0.x, v0.z)
     const speedKmh = Math.hypot(v0.x, v0.y, v0.z) * 3.6
-    const engineForce =
-      throttle * ENGINE + (boosting ? BOOST_ENGINE : 0) - brake * ENGINE * 0.45
+    let engineForce =
+      throttle * ENGINE * mult.engineForce +
+      (boosting ? BOOST_ENGINE * mult.boostForce : 0) -
+      brake * ENGINE * 0.45
+    const topCap = 95 * mult.topSpeedCap
+    if (speed > topCap && throttle > 0) engineForce *= 0.35
 
-    // RWD drive — isaac-mason pattern
     controller.setWheelEngineForce(2, engineForce)
     controller.setWheelEngineForce(3, engineForce)
     controller.setWheelEngineForce(0, 0)
@@ -163,28 +168,31 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     const brakeForce = brake * BRAKE + (drifting ? 2 : 0)
     for (let i = 0; i < 4; i++) controller.setWheelBrake(i, brakeForce)
 
-    // Counter-steer assist while drifting (pmndrs/racing-game style)
     const sideSlip = rb.linvel()
     const rotQ = rb.rotation()
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(
       new THREE.Quaternion(rotQ.x, rotQ.y, rotQ.z, rotQ.w),
     )
     const lateral = sideSlip.x * right.x + sideSlip.z * right.z
+    const maxSteer = BASE_MAX_STEER * mult.maxSteer
     const counter =
-      drifting && speedKmh > 25 ? THREE.MathUtils.clamp(-lateral * 0.035, -0.35, 0.35) : 0
+      drifting && speedKmh > 25
+        ? THREE.MathUtils.clamp(-lateral * 0.035 * mult.counterSteer, -0.45, 0.45)
+        : 0
     const steerTarget =
-      (steerAxis * MAX_STEER + counter) * (1 - Math.min(speedKmh / 260, 0.7))
+      (steerAxis * maxSteer + counter) * (1 - Math.min(speedKmh / 260, 0.7))
     const curSteer = controller.wheelSteering(0) ?? 0
     const steering = THREE.MathUtils.lerp(curSteer, steerTarget, 0.45)
     controller.setWheelSteering(0, steering)
     controller.setWheelSteering(1, steering)
 
-    // Drift: loosen rear slip (Rapier frictionSlip)
-    const rearSlip = drifting && speedKmh > 25 ? DRIFT_REAR_SLIP : NORMAL_REAR_SLIP
+    const rearSlip =
+      drifting && speedKmh > 25 ? DRIFT_REAR_SLIP * mult.driftRearSlip : NORMAL_REAR_SLIP * mult.frictionSlip
     controller.setWheelFrictionSlip(2, rearSlip)
     controller.setWheelFrictionSlip(3, rearSlip)
+    controller.setWheelFrictionSlip(0, STREET_WHEELS[0].frictionSlip * mult.frictionSlip)
+    controller.setWheelFrictionSlip(1, STREET_WHEELS[1].frictionSlip * mult.frictionSlip)
 
-    // Sync authored wheel meshes to physics wheel transforms (spin/steer only on local)
     for (let i = 0; i < 4; i++) {
       const phys = wheelsRef.current[i]
       const vis = visualWheels.current[i]
@@ -195,10 +203,34 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
       vis.rotation.x = spin
     }
 
+    const flameScale = mult.flameScale
     flameRefs.current.forEach((f, i) => {
       f.visible = boosting
-      f.scale.setScalar(boosting ? 0.6 + Math.sin(state.clock.elapsedTime * 40 + i) * 0.25 : 0.01)
+      f.scale.setScalar(boosting ? (0.55 + Math.sin(state.clock.elapsedTime * 40 + i) * 0.22) * flameScale : 0.01)
     })
+    stageFlameRefs.current.forEach((f, i) => {
+      const show = boosting && mult.dualStageFlames
+      f.visible = show
+      f.scale.setScalar(show ? (0.7 + Math.sin(state.clock.elapsedTime * 55 + i) * 0.3) * flameScale : 0.01)
+    })
+
+    const glow = underglowColor(setup.underglow)
+    if (underglowLight.current) {
+      if (glow) {
+        underglowLight.current.color.copy(glow)
+        underglowLight.current.intensity = 4.8 + Math.sin(state.clock.elapsedTime * 4) * 0.6
+      } else {
+        underglowLight.current.intensity = 0
+      }
+    }
+    if (underglowDisc.current) {
+      underglowDisc.current.visible = !!glow
+      if (glow) {
+        const mat = underglowDisc.current.material as THREE.MeshBasicMaterial
+        mat.color.copy(glow)
+        mat.opacity = 0.4 + Math.sin(state.clock.elapsedTime * 4) * 0.08
+      }
+    }
 
     const isDrifting = drifting && speedKmh > 25 && Math.abs(steerAxis) > 0.1
     if (isDrifting) {
@@ -241,13 +273,13 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     const cp = nearestWaypointIndex(pos, waypoints)
     const store = useGameStore.getState()
     let driftScore = store.driftScore
-    let mult = store.driftMultiplier
+    let scoreMult = store.driftMultiplier
     if (mode === 'freedrift') {
       if (isDrifting) {
-        mult = Math.min(8, mult + clampedDt * 0.4)
-        driftScore += Math.floor((8 + driftCombo.current * 14) * (1 + Math.abs(steerAxis)) * mult)
+        scoreMult = Math.min(8, scoreMult + clampedDt * 0.4)
+        driftScore += Math.floor((8 + driftCombo.current * 14) * (1 + Math.abs(steerAxis)) * scoreMult)
       } else {
-        mult = Math.max(1, mult - clampedDt * 1.2)
+        scoreMult = Math.max(1, scoreMult - clampedDt * 1.2)
       }
     }
     let checkpointIndex = store.checkpointIndex
@@ -267,11 +299,11 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     setTelemetry({
       speedKmh,
       rpm: 800 + Math.min(7000, speed * 180 + (boosting ? 900 : 0)),
-      nitro: nitroRef.current,
+      nitro: (nitroRef.current / mult.nitroCapacity) * 100,
       isDrifting,
       isBoosting: boosting,
       driftScore: floored,
-      driftMultiplier: Number(mult.toFixed(1)),
+      driftMultiplier: Number(scoreMult.toFixed(1)),
       checkpointIndex,
       lapTime,
       bestLap,
@@ -305,7 +337,6 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     }
     ;(window as unknown as { __boosting?: boolean }).__boosting = boosting
 
-    // Ground probe for out-of-bounds (isaac pattern)
     const ray = new rapier.Ray(t, { x: 0, y: -1, z: 0 })
     const hit = world.castRay(ray, 3, false, undefined, undefined, undefined, rb)
     if (!hit && t.y < -1) {
@@ -317,6 +348,7 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
   })
 
   const spawn = getStageWaypoints(stage)[0]
+  const glowCol = underglowColor(setup.underglow) ?? new THREE.Color('#22e0ff')
 
   return (
     <group>
@@ -335,8 +367,7 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
       >
         <CuboidCollider args={[0.95, 0.38, 2.1]} position={[0, 0.52, 0]} friction={1.1} restitution={0} />
         <primitive object={car} />
-        {/* Physics wheel anchors (isaac-mason visual sync targets) */}
-        {STREET_WHEELS.map((wheel, index) => (
+        {tunedWheels.map((wheel, index) => (
           <group
             key={index}
             ref={(el) => {
@@ -350,7 +381,7 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
           [0.35, 0.35, -2.15],
         ].map((p, i) => (
           <mesh
-            key={i}
+            key={`flame-${i}`}
             ref={(el) => {
               if (el) flameRefs.current[i] = el
             }}
@@ -361,6 +392,45 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
             <meshStandardMaterial color="#4db8ff" emissive="#1a8cff" emissiveIntensity={10} toneMapped={false} />
           </mesh>
         ))}
+        {[
+          [-0.22, 0.38, -2.35],
+          [0.22, 0.38, -2.35],
+        ].map((p, i) => (
+          <mesh
+            key={`stage-${i}`}
+            ref={(el) => {
+              if (el) stageFlameRefs.current[i] = el
+            }}
+            position={p as [number, number, number]}
+            visible={false}
+          >
+            <coneGeometry args={[0.1, 0.55, 8]} />
+            <meshStandardMaterial
+              color={i === 0 ? '#c44dff' : '#22e0ff'}
+              emissive={i === 0 ? '#a020f0' : '#00c8ff'}
+              emissiveIntensity={14}
+              toneMapped={false}
+            />
+          </mesh>
+        ))}
+        <pointLight
+          ref={underglowLight}
+          position={[0, 0.12, 0]}
+          color={glowCol}
+          intensity={setup.underglow === 'off' ? 0 : 5}
+          distance={6}
+          decay={2}
+        />
+        <mesh ref={underglowDisc} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} visible={setup.underglow !== 'off'}>
+          <circleGeometry args={[1.4, 32]} />
+          <meshBasicMaterial
+            color={glowCol}
+            transparent
+            opacity={0.4}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+          />
+        </mesh>
       </RigidBody>
 
       <instancedMesh ref={skidMesh} args={[undefined, undefined, 200]}>

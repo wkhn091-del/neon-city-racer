@@ -1,10 +1,13 @@
-import { Component, Suspense, useMemo, useRef, type ReactNode } from 'react'
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows, Environment, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { CARS, getCar } from '../garage/cars'
 import { fitShowroomCar } from '../garage/sanitizeCar'
+import { applyCarVisuals, underglowColor } from '../garage/applyCarVisuals'
 import { useGarageStore } from '../store/garageStore'
+import { useGameStore } from '../store/gameStore'
+import type { CarSetup } from '../garage/tuning'
 
 function prepareShowroomClone(scene: THREE.Object3D) {
   const c = scene.clone(true)
@@ -15,7 +18,6 @@ function prepareShowroomClone(scene: THREE.Object3D) {
     m.receiveShadow = true
     m.frustumCulled = false
     m.visible = true
-    // Drop huge ground planes sometimes packed into car GLBs
     if (/^Plane/i.test(m.name) && new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3()).x > 8) {
       m.visible = false
       return
@@ -46,18 +48,55 @@ function prepareShowroomClone(scene: THREE.Object3D) {
   return c
 }
 
-function ShowroomCar({ url }: { url: string }) {
+function ShowroomUnderglow({ setup }: { setup: CarSetup }) {
+  const color = underglowColor(setup.underglow)
+  const lightRef = useRef<THREE.PointLight>(null)
+  const discRef = useRef<THREE.Mesh>(null)
+
+  useFrame((state) => {
+    const pulse = 0.85 + Math.sin(state.clock.elapsedTime * 3.2) * 0.15
+    if (lightRef.current) lightRef.current.intensity = color ? 6.5 * pulse : 0
+    if (discRef.current) {
+      const mat = discRef.current.material as THREE.MeshBasicMaterial
+      mat.opacity = color ? 0.45 * pulse : 0
+      discRef.current.visible = !!color
+    }
+  })
+
+  if (!color) return null
+
+  return (
+    <group position={[0, 0.04, 0]}>
+      <pointLight ref={lightRef} color={color} intensity={6.5} distance={7} decay={2} castShadow={false} />
+      <mesh ref={discRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <circleGeometry args={[1.65, 48]} />
+        <meshBasicMaterial color={color} transparent opacity={0.45} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  )
+}
+
+function ShowroomCar({ url, setup }: { url: string; setup: CarSetup }) {
   const { scene } = useGLTF(url)
-  // Declarative primitive — R3F owns the object in the render list
+  const paint = useGameStore((s) => s.paint)
   const clone = useMemo(() => prepareShowroomClone(scene), [scene, url])
   const spin = useRef(0)
+
+  useEffect(() => {
+    applyCarVisuals(clone, setup, paint)
+  }, [clone, setup, paint])
 
   useFrame((_, dt) => {
     spin.current += dt * 0.28
     clone.rotation.y = spin.current
   })
 
-  return <primitive object={clone} />
+  return (
+    <group>
+      <primitive object={clone} />
+      <ShowroomUnderglow setup={setup} />
+    </group>
+  )
 }
 
 function ShowroomLights() {
@@ -128,6 +167,7 @@ function CameraRig() {
 
 export function GarageShowroom() {
   const previewCar = useGarageStore((s) => s.previewCar)
+  const setup = useGarageStore((s) => s.setups[previewCar])
   const car = getCar(previewCar)
 
   return (
@@ -146,13 +186,14 @@ export function GarageShowroom() {
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace
           gl.toneMappingExposure = 1.7
+          ;(window as unknown as { __gl?: THREE.WebGLRenderer }).__gl = gl
         }}
       >
         <color attach="background" args={['#0e1624']} />
         <ShowroomLights />
         <Suspense fallback={null}>
           <GarageEnvironment />
-          <ShowroomCar url={car.modelUrl} />
+          <ShowroomCar url={car.modelUrl} setup={setup} />
           <ReflectiveFloor />
           <ContactShadows position={[0, 0.01, 0]} opacity={0.7} scale={14} blur={2.6} far={8} />
           <CameraRig />

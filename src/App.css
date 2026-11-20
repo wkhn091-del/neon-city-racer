@@ -151,7 +151,7 @@ canvas {
 
 .shell-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.35rem;
 }
 
@@ -413,6 +413,133 @@ canvas {
 .deal-btn.buy {
   border-color: var(--accent2);
   background: linear-gradient(90deg, rgba(255, 77, 122, 0.28), rgba(255, 77, 122, 0.12));
+}
+
+.shell-card-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.car-strip.compact {
+  margin-bottom: 0.65rem;
+}
+
+.car-strip.compact .car-chip {
+  padding: 0.45rem 0.55rem;
+}
+
+.tuning-block {
+  margin-top: 0.7rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tuning-block h3 {
+  margin: 0 0 0.45rem;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tuning-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.tuning-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.tuning-copy strong {
+  font-size: 0.88rem;
+}
+
+.tuning-copy span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.tuning-pips {
+  display: flex;
+  gap: 0.22rem;
+  margin-top: 0.2rem;
+}
+
+.tuning-pips i {
+  width: 14px;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tuning-pips i.on {
+  background: linear-gradient(90deg, #3de0ff, #ff4d7a);
+}
+
+.tuning-buy {
+  border: 1px solid rgba(78, 240, 255, 0.35);
+  background: rgba(78, 240, 255, 0.1);
+  color: var(--text);
+  padding: 0.45rem 0.55rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tuning-buy:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.finish-row,
+.glow-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+
+.finish-row button,
+.glow-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 0.45rem 0.5rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.finish-row button.active,
+.glow-chip.active {
+  border-color: var(--accent);
+  background: rgba(78, 240, 255, 0.14);
+}
+
+.glow-chip {
+  box-shadow: inset 3px 0 0 var(--glow, transparent);
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 0.55rem;
+  align-items: center;
+  margin-bottom: 0.55rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.slider-row input[type='range'] {
+  width: 100%;
+  accent-color: #3de0ff;
 }
 
 .paint-row {

@@ -158,6 +158,36 @@ Shared gate (Rule 5) for every phase:
 
 ---
 
+## Phase 7 — Deep Car Tuning, Visual Customization & Performance Upgrades
+
+**Goal:** Persisted per-car tuning (L1–L5) that mutates real Rapier/audio parameters, plus live 3D material customization in the Garage.
+
+### Work
+
+- **TUNING** tab in Garage/Dealership: spend cash to upgrade (per car, `localStorage`):
+  - Engine & Turbo → horsepower / top speed / louder blow-off + bigger exhaust flames
+  - Tires & Suspension → grip + lower raycast `restLength`
+  - Drift Angle Kit → max steer + high-angle drift assist
+  - Nitrous Tank → capacity / recharge + dual-stage purple/cyan flames
+- **Visuals (live MeshPhysicalMaterial / lights):**
+  - Paint finishes: Gloss Metallic, Matte Stealth, Pearlescent Color-Shift, Chrome
+  - Neon underglow (Cyan / Magenta / Electric Lime / Gold / Off) projecting onto asphalt
+  - Rim paint + window tint sliders
+
+### PASS
+
+- [x] Upgrades persist per car across reload; cash deducted correctly
+- [x] Tuned car shows measurable physics/audio/flame differences in race
+- [x] Showroom updates paint/finish/underglow/rim/tint in real time (single car only)
+- [x] Playwright: Tuning tab + visual customization screenshots; zero TS / console errors
+- [x] Shared Rule 5 gate green
+
+### FAIL (block ship)
+
+- Tuning not persisted, overlapping cars in showroom, or gate red
+
+---
+
 ## Session commitment
 
 All subsequent work in this project session **must** follow `.cursor/rules/game-guardrails.mdc` (`alwaysApply: true`). When ambiguous, prefer Sketchfab/Poly Haven assets, marker parsing, and gate verification over speed.
