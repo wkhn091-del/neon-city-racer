@@ -298,6 +298,10 @@ canvas {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.4rem;
+}
+
+.mode-row-3 {
+  grid-template-columns: 1fr 1fr 1fr;
   margin-top: 0.8rem;
 }
 
@@ -662,6 +666,92 @@ canvas {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   backdrop-filter: blur(10px);
+}
+
+.heat-panel {
+  pointer-events: none;
+  align-self: flex-start;
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(255, 77, 122, 0.35);
+  background: linear-gradient(180deg, rgba(30, 8, 16, 0.88), rgba(8, 4, 10, 0.82));
+  backdrop-filter: blur(10px);
+  display: grid;
+  gap: 0.35rem;
+  min-width: 180px;
+}
+
+.heat-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  color: #ff7a9a;
+}
+
+.heat-stars {
+  display: flex;
+  gap: 0.28rem;
+}
+
+.heat-stars i {
+  width: 16px;
+  height: 16px;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.heat-stars i.on {
+  background: linear-gradient(180deg, #ffe08a, #ff4d7a);
+  box-shadow: 0 0 10px rgba(255, 77, 122, 0.55);
+}
+
+.escape-meter {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.bar-fill.escape {
+  background: linear-gradient(90deg, #3de0ff, #7aff9a);
+}
+
+.escape-toast {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  color: #7aff9a;
+}
+
+.atm-hud {
+  pointer-events: auto;
+  position: absolute;
+  top: 3.4rem;
+  right: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.atm-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 12, 20, 0.78);
+  color: var(--muted);
+  padding: 0.35rem 0.55rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.atm-chip.active {
+  color: #041018;
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #7af5ff, #3de0ff);
 }
 
 .hud-bottom {

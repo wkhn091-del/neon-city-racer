@@ -1,5 +1,5 @@
-import { Component, Suspense, useMemo, useRef, type ReactNode } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { BakeShadows, Environment, PerspectiveCamera, AdaptiveDpr, Preload } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
@@ -10,8 +10,11 @@ import { GameCamera } from './GameCamera'
 import { OceanWater } from './OceanWater'
 import { Traffic } from './Traffic'
 import { Pedestrians } from './Pedestrians'
+import { PoliceChase } from './PoliceChase'
+import { RainFX } from './RainFX'
 import { useGameStore, type QualityPreset } from '../store/gameStore'
 import { getStageWaypoints } from '../track/waypoints'
+import { getAtmosphere } from '../world/atmosphere'
 
 function PlayerPosSync({ playerPos }: { playerPos: React.MutableRefObject<THREE.Vector3> }) {
   useFrame(() => {
@@ -22,9 +25,9 @@ function PlayerPosSync({ playerPos }: { playerPos: React.MutableRefObject<THREE.
 }
 
 function qualitySettings(q: QualityPreset) {
-  if (q === 'low') return { dpr: [0.85, 1] as [number, number], shadows: false, bloom: false, shadowMap: 512, exposure: 1.0 }
-  if (q === 'medium') return { dpr: [1, 1.25] as [number, number], shadows: true, bloom: true, shadowMap: 1024, exposure: 0.95 }
-  return { dpr: [1, 1.5] as [number, number], shadows: true, bloom: true, shadowMap: 2048, exposure: 0.9 }
+  if (q === 'low') return { dpr: [0.85, 1] as [number, number], shadows: false, bloom: false, shadowMap: 512 }
+  if (q === 'medium') return { dpr: [1, 1.25] as [number, number], shadows: true, bloom: true, shadowMap: 1024 }
+  return { dpr: [1, 1.5] as [number, number], shadows: true, bloom: true, shadowMap: 2048 }
 }
 
 class EnvBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { err: boolean }> {
@@ -38,21 +41,67 @@ class EnvBoundary extends Component<{ children: ReactNode; fallback: ReactNode }
 }
 
 function CityEnvironment() {
+  const atmosphere = useGameStore((s) => s.atmosphere)
+  const preset = getAtmosphere(atmosphere)
+  const fallback = preset.envPreset ?? 'night'
   return (
-    <EnvBoundary fallback={<Environment preset="city" background={false} environmentIntensity={0.45} />}>
-      <Suspense fallback={<Environment preset="night" background={false} environmentIntensity={0.4} />}>
-        <Environment files="/hdri/modern_buildings_night_2k.hdr" background={false} environmentIntensity={0.5} />
+    <EnvBoundary fallback={<Environment preset={fallback} background={false} environmentIntensity={preset.envIntensity} />}>
+      <Suspense fallback={<Environment preset={fallback} background={false} environmentIntensity={preset.envIntensity * 0.9} />}>
+        {preset.hdri ? (
+          <Environment key={preset.hdri} files={preset.hdri} background={false} environmentIntensity={preset.envIntensity} />
+        ) : (
+          <Environment key={`preset-${fallback}`} preset={fallback} background={false} environmentIntensity={preset.envIntensity} />
+        )}
       </Suspense>
     </EnvBoundary>
+  )
+}
+
+function AtmosphereLights({ shadows, shadowMap }: { shadows: boolean; shadowMap: number }) {
+  const atmosphere = useGameStore((s) => s.atmosphere)
+  const preset = getAtmosphere(atmosphere)
+  const { gl, scene } = useThree()
+
+  useEffect(() => {
+    gl.toneMappingExposure = preset.exposure
+    gl.setClearColor(preset.bg, 1)
+    scene.background = new THREE.Color(preset.bg)
+    scene.fog = new THREE.Fog(preset.bg, preset.fogNear, preset.fogFar)
+  }, [preset, gl, scene])
+
+  return (
+    <>
+      <color attach="background" args={[preset.bg]} />
+      <fog attach="fog" args={[preset.bg, preset.fogNear, preset.fogFar]} />
+      <ambientLight intensity={preset.ambient} />
+      <hemisphereLight args={[preset.hemiSky, preset.hemiGround, preset.hemiIntensity]} />
+      <directionalLight
+        castShadow={shadows}
+        intensity={preset.sunIntensity}
+        position={preset.sunPos}
+        color={preset.sunColor}
+        shadow-mapSize={[shadowMap, shadowMap]}
+        shadow-camera-far={800}
+        shadow-camera-left={-320}
+        shadow-camera-right={320}
+        shadow-camera-top={320}
+        shadow-camera-bottom={-320}
+      />
+      <directionalLight intensity={preset.fillIntensity} position={[-50, 50, -70]} color={preset.fillColor} />
+    </>
   )
 }
 
 export function GameCanvas() {
   const stage = useGameStore((s) => s.stage)
   const quality = useGameStore((s) => s.quality)
+  const atmosphere = useGameStore((s) => s.atmosphere)
+  const heat = useGameStore((s) => s.heat)
   const qs = useMemo(() => qualitySettings(quality), [quality])
+  const atm = getAtmosphere(atmosphere)
   const spawn = getStageWaypoints(stage)[0]
   const playerPos = useRef(new THREE.Vector3(spawn.x, spawn.y + 2, spawn.z))
+  const bloomIntensity = qs.bloom ? (heat > 0 ? 0.28 : atm.rain ? 0.22 : 0.16) : 0
 
   return (
     <Canvas
@@ -68,14 +117,12 @@ export function GameCanvas() {
       onCreated={({ gl, scene }) => {
         gl.outputColorSpace = THREE.SRGBColorSpace
         gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = qs.exposure
-        gl.setClearColor('#0d1524', 1)
-        scene.background = new THREE.Color('#0d1524')
+        gl.toneMappingExposure = atm.exposure
+        gl.setClearColor(atm.bg, 1)
+        scene.background = new THREE.Color(atm.bg)
         ;(window as unknown as { __gl?: THREE.WebGLRenderer }).__gl = gl
       }}
     >
-      <color attach="background" args={['#0d1524']} />
-      <fog attach="fog" args={['#0d1524', 120, quality === 'low' ? 480 : 700]} />
       <PerspectiveCamera
         makeDefault
         fov={55}
@@ -84,21 +131,7 @@ export function GameCanvas() {
         far={2500}
       />
 
-      <ambientLight intensity={0.35} />
-      <hemisphereLight args={['#a8c4e8', '#121820', 0.55]} />
-      <directionalLight
-        castShadow={qs.shadows}
-        intensity={1.35}
-        position={[90, 140, 50]}
-        color="#e8f0ff"
-        shadow-mapSize={[qs.shadowMap, qs.shadowMap]}
-        shadow-camera-far={800}
-        shadow-camera-left={-320}
-        shadow-camera-right={320}
-        shadow-camera-top={320}
-        shadow-camera-bottom={-320}
-      />
-      <directionalLight intensity={0.35} position={[-50, 50, -70]} color="#7a94c8" />
+      <AtmosphereLights shadows={qs.shadows} shadowMap={qs.shadowMap} />
 
       <Suspense fallback={null}>
         <CityEnvironment />
@@ -107,9 +140,11 @@ export function GameCanvas() {
           <HeroCar key={`hero-${stage}`} />
           <Traffic stage={stage} playerPos={playerPos} />
           <Pedestrians />
+          <PoliceChase playerPos={playerPos} />
         </Physics>
         <GameCamera target={playerPos} />
         <PlayerPosSync playerPos={playerPos} />
+        <RainFX />
         <Suspense fallback={null}>
           <OceanWater />
         </Suspense>
@@ -119,7 +154,7 @@ export function GameCanvas() {
 
       {qs.bloom ? (
         <EffectComposer multisampling={0} enableNormalPass={false}>
-          <Bloom intensity={0.16} luminanceThreshold={0.88} mipmapBlur />
+          <Bloom intensity={bloomIntensity} luminanceThreshold={heat > 0 ? 0.72 : 0.88} mipmapBlur />
         </EffectComposer>
       ) : null}
       <AdaptiveDpr />

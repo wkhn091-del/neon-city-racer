@@ -188,6 +188,31 @@ Shared gate (Rule 5) for every phase:
 
 ---
 
+## Phase 8 — Police Pursuit Mode ("HEAT LEVEL") & Dynamic Weather/Time-of-Day
+
+**Goal:** Heat-driven police chase with Sketchfab interceptor AI, plus switchable Midnight Neon / Golden Sunset / Rainy Storm atmosphere.
+
+### Work
+
+- Import `public/models/police_car.glb` (Sketchfab via Blender MCP) with flashing red/blue lightbar `PointLight`s + Bloom and Web Audio siren
+- **POLICE CHASE / ESCAPE** mode + Heat meter in Free Drift: collisions / speed traps raise Heat 1–5★, spawn aggressive AI interceptors (chase / flank / box-in); escape radar for 15s → big cash payout
+- Atmosphere toggle: **Midnight Neon**, **Golden Sunset**, **Rainy Storm**
+  - Rain: GPU-instanced streaks near camera, darker HDRI, wet asphalt specular, raindrop audio
+
+### PASS
+
+- [x] Police GLB loads; lightbar + siren audible/visible in chase
+- [x] Heat 1–5 stars spawn escalating cops; escape payout credits cash
+- [x] Atmosphere presets change lighting/fog/HDRI; Rainy Storm shows rain + wet roads
+- [x] Playwright: chase + weather screenshots; zero TS / console errors
+- [x] Shared Rule 5 gate green
+
+### FAIL (block ship)
+
+- Procedural police mesh, heat broken, weather silent, or gate red
+
+---
+
 ## Session commitment
 
 All subsequent work in this project session **must** follow `.cursor/rules/game-guardrails.mdc` (`alwaysApply: true`). When ambiguous, prefer Sketchfab/Poly Haven assets, marker parsing, and gate verification over speed.

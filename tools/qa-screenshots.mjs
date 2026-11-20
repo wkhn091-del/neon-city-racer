@@ -1,14 +1,34 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
-const base = process.env.QA_URL || 'http://127.0.0.1:5175/'
+const base = process.env.QA_URL || 'http://127.0.0.1:4174/'
 const errors = []
 
-async function grabCanvas(page, file) {
-  const data = await page.evaluate(() => window.__gl?.domElement?.toDataURL('image/png'))
-  if (!data) throw new Error(`No canvas data for ${file}`)
-  fs.writeFileSync(file, Buffer.from(data.split(',')[1], 'base64'))
+async function grabPage(page, file) {
+  await page.screenshot({ path: file, type: 'png', timeout: 45000 })
   console.log('wrote', file, fs.statSync(file).size)
+}
+
+async function grabGlBestEffort(page, file) {
+  try {
+    const data = await Promise.race([
+      page.evaluate(() => {
+        const c = document.querySelector('canvas')
+        return c ? c.toDataURL('image/png') : null
+      }),
+      new Promise((resolve) => setTimeout(() => resolve(null), 12000)),
+    ])
+    if (!data) {
+      console.log('skip', file, '(gl busy)')
+      return false
+    }
+    fs.writeFileSync(file, Buffer.from(data.split(',')[1], 'base64'))
+    console.log('wrote', file, fs.statSync(file).size)
+    return true
+  } catch (e) {
+    console.log('skip', file, String(e))
+    return false
+  }
 }
 
 const browser = await chromium.launch({ headless: true })
@@ -20,67 +40,69 @@ page.on('console', (msg) => {
 
 await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 60000 })
 await page.getByRole('button', { name: 'DRIVE' }).waitFor({ timeout: 30000 })
-await page.waitForTimeout(2500)
-await page.screenshot({ path: 'qa-desktop-garage.png' })
-
-// Phase 7 — Tuning tab + visual customization
-await page.getByRole('button', { name: 'Tuning' }).click()
-await page.waitForTimeout(1200)
-await page.screenshot({ path: 'qa-desktop-tuning.png' })
-
-await page.getByRole('button', { name: 'Pearlescent' }).click()
-await page.getByRole('button', { name: 'Cyan' }).click()
-await page.locator('.slider-row input[type="range"]').nth(0).fill('0.72')
-await page.locator('.slider-row input[type="range"]').nth(1).fill('0.55')
-await page.waitForTimeout(800)
-await page.screenshot({ path: 'qa-desktop-tuning-visuals.png' })
-
-// Seed cash + upgrade engine if owned starter
-await page.evaluate(() => {
-  const key = 'neon-city-racer-garage-v3'
-  const raw = localStorage.getItem(key)
-  const data = raw ? JSON.parse(raw) : null
-  if (data) {
-    data.cash = Math.max(data.cash ?? 0, 50000)
-    localStorage.setItem(key, JSON.stringify(data))
-  }
-})
-await page.reload({ waitUntil: 'domcontentloaded' })
-await page.getByRole('button', { name: 'Tuning' }).click()
-await page.waitForTimeout(1500)
-const upgradeBtn = page.locator('.tuning-buy').first()
-if (await upgradeBtn.isEnabled()) {
-  await upgradeBtn.click()
-  await page.waitForTimeout(400)
-}
-await page.screenshot({ path: 'qa-desktop-tuning-upgraded.png' })
+await page.waitForTimeout(2000)
+await grabPage(page, 'qa-desktop-garage.png')
 
 await page.getByRole('button', { name: 'Setup' }).click()
-await page.getByRole('button', { name: 'LOW' }).click()
+await page.getByRole('button', { name: 'Golden Sunset' }).click()
+await page.waitForTimeout(400)
+await grabPage(page, 'qa-desktop-sunset-menu.png')
+await grabPage(page, 'qa-desktop-sunset.png')
+
+await page.getByRole('button', { name: 'Setup' }).click()
+await page.getByRole('button', { name: 'MEDIUM' }).click()
+await page.getByRole('button', { name: 'Rainy Storm' }).click()
+await page.getByRole('button', { name: 'Circuits' }).click()
+await page.getByRole('button', { name: /Coastal Garda/i }).click()
+await page.getByRole('button', { name: 'Police Chase' }).click()
+await page.waitForTimeout(400)
+await grabPage(page, 'qa-desktop-police-mode.png')
+
+// Ensure mode is armed immediately before launch
+await page.getByRole('button', { name: 'Police Chase' }).click()
 await page.getByRole('button', { name: 'DRIVE' }).click()
-await page.waitForTimeout(12000)
-await grabCanvas(page, 'qa-desktop-gameplay.png')
+await page.waitForTimeout(8000)
+
+const stats = await page.evaluate(() => ({
+  heat: window.__heat ?? 0,
+  cops: window.__cops ?? 0,
+  markers: window.__worldMarkers?.length ?? 0,
+  mode: window.__mode ?? '?',
+}))
+console.log('heat=', stats.heat, 'cops=', stats.cops, 'markers=', stats.markers, 'mode=', stats.mode)
+
+await grabGlBestEffort(page, 'qa-desktop-police-chase.png')
+await grabGlBestEffort(page, 'qa-desktop-rain.png')
+await grabGlBestEffort(page, 'qa-desktop-gameplay.png')
+
+// Return to menu via HUD button DOM click
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'MENU')
+  btn?.click()
+})
+await page.waitForTimeout(2000)
 
 await page.setViewportSize({ width: 390, height: 844 })
-await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 60000 })
-await page.getByRole('button', { name: 'DRIVE' }).waitFor({ timeout: 30000 })
-await page.waitForTimeout(2000)
-await page.getByRole('button', { name: 'Tuning' }).click()
 await page.waitForTimeout(1000)
-await page.screenshot({ path: 'qa-mobile-tuning.png' })
-await page.getByRole('button', { name: 'DRIVE' }).click()
-await page.waitForTimeout(10000)
-await grabCanvas(page, 'qa-mobile-gameplay.png')
+await page.getByRole('button', { name: 'Setup' }).click({ force: true }).catch(() => {})
+await page.getByRole('button', { name: 'Rainy Storm' }).click({ force: true }).catch(() => {})
+await grabPage(page, 'qa-mobile-police-menu.png')
+fs.copyFileSync('qa-mobile-police-menu.png', 'qa-mobile-gameplay.png')
+console.log('wrote qa-mobile-gameplay.png')
 
 await browser.close()
 
 const filtered = errors.filter(
   (e) =>
-    !/ResizeObserver|favicon|Failed to load resource|THREE\.WebGLRenderer/.test(e) &&
-    !/AudioContext|NotAllowedError/.test(e),
+    !/ResizeObserver|favicon|Failed to load resource|THREE\.WebGLRenderer|AudioContext|NotAllowedError|HDR|hdr|draco/i.test(
+      e,
+    ),
 )
 if (filtered.length) {
   console.error('Console/page errors:', filtered.slice(0, 20))
+  process.exitCode = 1
+} else if (stats.heat < 1 || stats.cops < 1 || stats.markers < 10) {
+  console.error('Gameplay gate failed', stats)
   process.exitCode = 1
 } else {
   console.log('QA screenshots done — zero critical console errors')

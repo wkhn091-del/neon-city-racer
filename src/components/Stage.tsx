@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
@@ -6,6 +6,7 @@ import { getStageDef, type StageId } from '../world/stages'
 import { useGameStore } from '../store/gameStore'
 import { extractWorldMarkers } from '../world/markers'
 import { setWorldMarkers } from '../world/markerCache'
+import { getAtmosphere } from '../world/atmosphere'
 
 /**
  * Orient → scale → center XZ → drop so asphalt (Spawn_Player / TRACK) sits on y=0.
@@ -54,6 +55,7 @@ function normalizeWorld(root: THREE.Object3D, targetSize: number, rotX: number) 
 export function Stage({ stage }: { stage: StageId }) {
   const def = getStageDef(stage)
   const quality = useGameStore((s) => s.quality)
+  const atmosphere = useGameStore((s) => s.atmosphere)
   const { scene } = useGLTF(def.modelUrl)
 
   const prepared = useMemo(() => {
@@ -110,6 +112,39 @@ export function Stage({ stage }: { stage: StageId }) {
     const worldBox = new THREE.Box3().setFromObject(visual)
     return { visual, worldBox, markers }
   }, [scene, def.targetSize, def.rotX, quality])
+
+  useEffect(() => {
+    const wet = getAtmosphere(atmosphere).wetRoads
+    prepared.visual.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh || !mesh.material) return
+      if (!/TRACK|PARKING|ROAD|ASPHALT/i.test(mesh.name)) return
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      mats.forEach((raw) => {
+        const mat = raw as THREE.MeshStandardMaterial
+        if (!mat?.isMeshStandardMaterial && !(mat as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial) return
+        if (wet) {
+          mat.metalness = Math.min(0.85, Math.max(mat.metalness ?? 0.2, 0.55))
+          mat.roughness = Math.min(0.28, Math.max(0.08, (mat.roughness ?? 0.7) * 0.25))
+          mat.envMapIntensity = 1.8
+          if ('clearcoat' in mat) {
+            const p = mat as THREE.MeshPhysicalMaterial
+            p.clearcoat = 1
+            p.clearcoatRoughness = 0.08
+          }
+        } else {
+          mat.metalness = Math.min(mat.metalness ?? 0.1, 0.25)
+          mat.roughness = Math.min(Math.max(mat.roughness ?? 0.75, 0.55), 0.95)
+          mat.envMapIntensity = 0.55
+          if ('clearcoat' in mat) {
+            const p = mat as THREE.MeshPhysicalMaterial
+            p.clearcoat = 0
+          }
+        }
+        mat.needsUpdate = true
+      })
+    })
+  }, [atmosphere, prepared.visual])
 
   const size = prepared.worldBox.getSize(new THREE.Vector3())
   const groundSize = Math.max(160, size.x, size.z) * 1.2

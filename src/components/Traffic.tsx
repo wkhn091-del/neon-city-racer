@@ -67,6 +67,7 @@ export function Traffic({ stage, playerPos }: { stage: StageId; playerPos: RefOb
 
   useFrame((_, dt) => {
     if (!group.current) return
+    let nearestTraffic = Infinity
     cars.forEach((car, i) => {
       const path = car.lane === 'A' ? pathA : pathB
       if (path.length < 2) return
@@ -79,6 +80,7 @@ export function Traffic({ stage, playerPos }: { stage: StageId; playerPos: RefOb
 
       if (playerPos.current) {
         const d = pos.distanceTo(playerPos.current)
+        nearestTraffic = Math.min(nearestTraffic, d)
         if (d < 14) speed *= Math.max(0.12, (d - 4) / 10)
       }
 
@@ -95,6 +97,7 @@ export function Traffic({ stage, playerPos }: { stage: StageId; playerPos: RefOb
       node.position.y += 0.2
       node.lookAt(p.clone().add(forward))
     })
+    ;(window as unknown as { __trafficNear?: number }).__trafficNear = nearestTraffic
   })
 
   return (

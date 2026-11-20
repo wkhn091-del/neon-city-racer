@@ -1,4 +1,5 @@
 import { PAINT_COLORS, useGameStore, type MenuTab, type PaintId, type QualityPreset } from '../store/gameStore'
+import { ATMOSPHERES, type AtmosphereId } from '../world/atmosphere'
 import { CARS, type CarId } from '../garage/cars'
 import {
   PAINT_FINISHES,
@@ -33,11 +34,13 @@ export function MainMenu() {
   const mode = useGameStore((s) => s.mode)
   const paint = useGameStore((s) => s.paint)
   const quality = useGameStore((s) => s.quality)
+  const atmosphere = useGameStore((s) => s.atmosphere)
   const menuTab = useGameStore((s) => s.menuTab)
   const setStage = useGameStore((s) => s.setStage)
   const setMode = useGameStore((s) => s.setMode)
   const setPaint = useGameStore((s) => s.setPaint)
   const setQuality = useGameStore((s) => s.setQuality)
+  const setAtmosphere = useGameStore((s) => s.setAtmosphere)
   const setMenuTab = useGameStore((s) => s.setMenuTab)
   const startRace = useGameStore((s) => s.startRace)
 
@@ -122,14 +125,26 @@ export function MainMenu() {
                 </button>
               ))}
             </div>
-            <div className="mode-row">
+            <div className="mode-row mode-row-3">
               <button type="button" className={mode === 'freedrift' ? 'active' : ''} onClick={() => setMode('freedrift')}>
                 Free Drift
               </button>
               <button type="button" className={mode === 'timeattack' ? 'active' : ''} onClick={() => setMode('timeattack')}>
                 Time Attack
               </button>
+              <button
+                type="button"
+                className={mode === 'policechase' ? 'active' : ''}
+                onClick={() => setMode('policechase')}
+              >
+                Police Chase
+              </button>
             </div>
+            <p className="shell-hint">
+              {mode === 'policechase'
+                ? 'HEAT starts at ★★ — escape radar 15s for cash.'
+                : 'Free Drift builds HEAT via traps & traffic hits.'}
+            </p>
           </section>
         )}
 
@@ -333,6 +348,22 @@ export function MainMenu() {
               {qualities.map((q) => (
                 <button key={q} type="button" className={quality === q ? 'active' : ''} onClick={() => setQuality(q)}>
                   {q.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <div className="shell-card-head" style={{ marginTop: '0.85rem' }}>
+              <h2>Atmosphere</h2>
+              <p>Time of day & weather.</p>
+            </div>
+            <div className="mode-row mode-row-3">
+              {ATMOSPHERES.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={atmosphere === a.id ? 'active' : ''}
+                  onClick={() => setAtmosphere(a.id as AtmosphereId)}
+                >
+                  {a.label}
                 </button>
               ))}
             </div>
