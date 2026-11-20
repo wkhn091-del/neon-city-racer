@@ -21,8 +21,12 @@ export function GameCamera({ target }: { target: RefObject<THREE.Vector3> }) {
   useFrame((_, dt) => {
     if (!target.current) return
     const p = target.current
-    const w = window as unknown as { __playerQuat?: THREE.Quaternion }
-    const quat = w.__playerQuat ?? new THREE.Quaternion()
+    const win = window as unknown as {
+      __playerQuat?: THREE.Quaternion
+      __camPos?: THREE.Vector3
+      __camLook?: THREE.Vector3
+    }
+    const quat = win.__playerQuat ?? new THREE.Quaternion()
 
     if (mode === 'hood') {
       desired.current.set(0, 1.05, 0.55).applyQuaternion(quat).add(p)
@@ -47,6 +51,10 @@ export function GameCamera({ target }: { target: RefObject<THREE.Vector3> }) {
     }
     camera.position.copy(smoothedPos.current)
     camera.lookAt(smoothedLook.current)
+    if (!win.__camPos) win.__camPos = new THREE.Vector3()
+    if (!win.__camLook) win.__camLook = new THREE.Vector3()
+    win.__camPos.copy(camera.position)
+    win.__camLook.copy(smoothedLook.current)
   })
 
   return null

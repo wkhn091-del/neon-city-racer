@@ -98,8 +98,11 @@ export class VehicleController {
     const speed = this.vel.length()
     const speedKmh = speed * 3.6
 
-    const steerAngle = input.steer * MAX_STEER * (1 - Math.min(speedKmh / 280, 0.75))
+    // Progressive steering + counter-steer assist when drifting
+    const steerBase = input.steer * MAX_STEER * (1 - Math.min(speedKmh / 280, 0.75))
     const drifting = input.drift && Math.abs(this.localVel.x) > 2.2 && speedKmh > 20
+    const counter = drifting ? THREE.MathUtils.clamp(-this.localVel.x * 0.04, -0.4, 0.4) : 0
+    const steerAngle = steerBase + counter
     if (input.boost && this.nitro > 0) this.nitro = Math.max(0, this.nitro - 28 * dt)
     else this.nitro = Math.min(100, this.nitro + 8 * dt)
     const boosting = input.boost && this.nitro > 0

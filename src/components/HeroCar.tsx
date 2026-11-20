@@ -120,13 +120,17 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     if (boosting) nitroRef.current = Math.max(0, nitroRef.current - 28 * clampedDt)
     else nitroRef.current = Math.min(100, nitroRef.current + 8 * clampedDt)
 
-    // Snap once to Blender Empty spawn after Stage extracts markers
+    // Snap once to Blender Empty spawn — downward Rapier raycast keeps tires flush
     if (!snappedToMarker.current) {
       const markerSpawn = getSpawnMarker(getCachedWorldMarkers())
       if (markerSpawn) {
         snappedToMarker.current = true
         const p = markerSpawn.position
-        rb.setTranslation({ x: p.x, y: p.y + 0.55, z: p.z }, true)
+        const origin = { x: p.x, y: p.y + 6, z: p.z }
+        const ray = new rapier.Ray(origin, { x: 0, y: -1, z: 0 })
+        const hit = world.castRay(ray, 14, true, undefined, undefined, undefined, rb)
+        const surfaceY = hit ? origin.y - hit.timeOfImpact : p.y
+        rb.setTranslation({ x: p.x, y: surfaceY + 0.55, z: p.z }, true)
         rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
         rb.setAngvel({ x: 0, y: 0, z: 0 }, true)
         const yaw = Math.atan2(markerSpawn.forward.x, markerSpawn.forward.z)
@@ -159,7 +163,17 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     const brakeForce = brake * BRAKE + (drifting ? 2 : 0)
     for (let i = 0; i < 4; i++) controller.setWheelBrake(i, brakeForce)
 
-    const steerTarget = steerAxis * MAX_STEER * (1 - Math.min(speedKmh / 260, 0.7))
+    // Counter-steer assist while drifting (pmndrs/racing-game style)
+    const sideSlip = rb.linvel()
+    const rotQ = rb.rotation()
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(
+      new THREE.Quaternion(rotQ.x, rotQ.y, rotQ.z, rotQ.w),
+    )
+    const lateral = sideSlip.x * right.x + sideSlip.z * right.z
+    const counter =
+      drifting && speedKmh > 25 ? THREE.MathUtils.clamp(-lateral * 0.035, -0.35, 0.35) : 0
+    const steerTarget =
+      (steerAxis * MAX_STEER + counter) * (1 - Math.min(speedKmh / 260, 0.7))
     const curSteer = controller.wheelSteering(0) ?? 0
     const steering = THREE.MathUtils.lerp(curSteer, steerTarget, 0.45)
     controller.setWheelSteering(0, steering)
@@ -284,7 +298,12 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     if (cam.isPerspectiveCamera) {
       cam.fov = THREE.MathUtils.lerp(cam.fov, boosting ? 68 : 55, 0.08)
       cam.updateProjectionMatrix()
+      if (boosting) {
+        cam.position.x += (Math.random() - 0.5) * 0.04
+        cam.position.y += (Math.random() - 0.5) * 0.03
+      }
     }
+    ;(window as unknown as { __boosting?: boolean }).__boosting = boosting
 
     // Ground probe for out-of-bounds (isaac pattern)
     const ray = new rapier.Ray(t, { x: 0, y: -1, z: 0 })
@@ -339,7 +358,7 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
             visible={false}
           >
             <coneGeometry args={[0.08, 0.45, 8]} />
-            <meshStandardMaterial color="#ff6a00" emissive="#ff3b00" emissiveIntensity={8} toneMapped={false} />
+            <meshStandardMaterial color="#4db8ff" emissive="#1a8cff" emissiveIntensity={10} toneMapped={false} />
           </mesh>
         ))}
       </RigidBody>

@@ -1,13 +1,13 @@
 import { Component, Suspense, useMemo, useRef, type ReactNode } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Environment, PerspectiveCamera, AdaptiveDpr } from '@react-three/drei'
+import { BakeShadows, Environment, PerspectiveCamera, AdaptiveDpr, Preload } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
-import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { Stage } from './Stage'
 import { HeroCar } from './HeroCar'
 import { GameCamera } from './GameCamera'
+import { OceanWater } from './OceanWater'
 import { useGameStore, type QualityPreset } from '../store/gameStore'
 import { getStageWaypoints } from '../track/waypoints'
 
@@ -20,9 +20,9 @@ function PlayerPosSync({ playerPos }: { playerPos: React.MutableRefObject<THREE.
 }
 
 function qualitySettings(q: QualityPreset) {
-  if (q === 'low') return { dpr: [0.85, 1] as [number, number], shadows: false, bloom: false, shadowMap: 512, exposure: 1.5 }
-  if (q === 'medium') return { dpr: [1, 1.25] as [number, number], shadows: true, bloom: true, shadowMap: 1024, exposure: 1.4 }
-  return { dpr: [1, 1.5] as [number, number], shadows: true, bloom: true, shadowMap: 2048, exposure: 1.35 }
+  if (q === 'low') return { dpr: [0.85, 1] as [number, number], shadows: false, bloom: false, shadowMap: 512, exposure: 1.0 }
+  if (q === 'medium') return { dpr: [1, 1.25] as [number, number], shadows: true, bloom: true, shadowMap: 1024, exposure: 0.95 }
+  return { dpr: [1, 1.5] as [number, number], shadows: true, bloom: true, shadowMap: 2048, exposure: 0.9 }
 }
 
 class EnvBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { err: boolean }> {
@@ -37,9 +37,9 @@ class EnvBoundary extends Component<{ children: ReactNode; fallback: ReactNode }
 
 function CityEnvironment() {
   return (
-    <EnvBoundary fallback={<Environment preset="city" background={false} environmentIntensity={1.15} />}>
-      <Suspense fallback={<Environment preset="night" background={false} environmentIntensity={1.05} />}>
-        <Environment files="/hdri/modern_buildings_night_2k.hdr" background={false} environmentIntensity={1.15} />
+    <EnvBoundary fallback={<Environment preset="city" background={false} environmentIntensity={0.45} />}>
+      <Suspense fallback={<Environment preset="night" background={false} environmentIntensity={0.4} />}>
+        <Environment files="/hdri/modern_buildings_night_2k.hdr" background={false} environmentIntensity={0.5} />
       </Suspense>
     </EnvBoundary>
   )
@@ -67,13 +67,13 @@ export function GameCanvas() {
         gl.outputColorSpace = THREE.SRGBColorSpace
         gl.toneMapping = THREE.ACESFilmicToneMapping
         gl.toneMappingExposure = qs.exposure
-        gl.setClearColor('#152238', 1)
-        scene.background = new THREE.Color('#152238')
+        gl.setClearColor('#0d1524', 1)
+        scene.background = new THREE.Color('#0d1524')
         ;(window as unknown as { __gl?: THREE.WebGLRenderer }).__gl = gl
       }}
     >
-      <color attach="background" args={['#152238']} />
-      <fog attach="fog" args={['#152238', 80, quality === 'low' ? 420 : 650]} />
+      <color attach="background" args={['#0d1524']} />
+      <fog attach="fog" args={['#0d1524', 120, quality === 'low' ? 480 : 700]} />
       <PerspectiveCamera
         makeDefault
         fov={55}
@@ -82,11 +82,11 @@ export function GameCanvas() {
         far={2500}
       />
 
-      <ambientLight intensity={0.85} />
-      <hemisphereLight args={['#c8dcff', '#1e2430', 1.5]} />
+      <ambientLight intensity={0.35} />
+      <hemisphereLight args={['#a8c4e8', '#121820', 0.55]} />
       <directionalLight
         castShadow={qs.shadows}
-        intensity={2.8}
+        intensity={1.35}
         position={[90, 140, 50]}
         color="#e8f0ff"
         shadow-mapSize={[qs.shadowMap, qs.shadowMap]}
@@ -96,23 +96,26 @@ export function GameCanvas() {
         shadow-camera-top={320}
         shadow-camera-bottom={-320}
       />
-      <directionalLight intensity={0.9} position={[-50, 50, -70]} color="#8aa6ff" />
+      <directionalLight intensity={0.35} position={[-50, 50, -70]} color="#7a94c8" />
 
       <Suspense fallback={null}>
         <CityEnvironment />
         <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60} numSolverIterations={8}>
           <Stage key={stage} stage={stage} />
           <HeroCar key={`hero-${stage}`} />
-          {/* Traffic / peds paused until map+car skeleton is solid */}
         </Physics>
         <GameCamera target={playerPos} />
         <PlayerPosSync playerPos={playerPos} />
+        <Suspense fallback={null}>
+          <OceanWater />
+        </Suspense>
+        {qs.shadows ? <BakeShadows /> : null}
+        <Preload all />
       </Suspense>
 
       {qs.bloom ? (
-        <EffectComposer multisampling={0}>
-          <Bloom intensity={0.28} luminanceThreshold={0.78} mipmapBlur />
-          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+        <EffectComposer multisampling={0} enableNormalPass={false}>
+          <Bloom intensity={0.16} luminanceThreshold={0.88} mipmapBlur />
         </EffectComposer>
       ) : null}
       <AdaptiveDpr />
