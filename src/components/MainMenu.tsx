@@ -156,7 +156,7 @@ export function MainMenu() {
               </div>
               {ownsPreview ? (
                 <button type="button" className="deal-btn" onClick={() => selectActiveCar(previewCar)}>
-                  {activeCar === previewCar ? 'EQUIPPED' : 'EQUIP'}
+                  {activeCar === previewCar ? 'READY TO DRIVE' : 'EQUIP / DRIVE'}
                 </button>
               ) : (
                 <button
@@ -168,7 +168,7 @@ export function MainMenu() {
                     else selectActiveCar(previewCar)
                   }}
                 >
-                  BUY ${preview.price.toLocaleString()}
+                  BUY / DRIVE · ${preview.price.toLocaleString()}
                 </button>
               )}
             </div>

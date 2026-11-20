@@ -191,6 +191,7 @@ canvas {
 .shell-card {
   flex: 1;
   min-height: 0;
+  max-height: 90vh;
   overflow: auto;
   padding: 0.9rem;
   border: 1px solid rgba(78, 240, 255, 0.22);
