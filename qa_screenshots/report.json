@@ -1,0 +1,23 @@
+{
+  "stats": {
+    "heat": 2,
+    "cops": 0,
+    "markers": 35,
+    "mode": "policechase",
+    "camera": "drift",
+    "radio": "phonk"
+  },
+  "screenshots": [
+    "01-menu-garage.png",
+    "02-tuning-garage.png",
+    "03-tuning-visuals.png",
+    "04-police-mode-rain.png",
+    "05-police-chase.png",
+    "06-rain-reflections.png",
+    "07-radio-on.png",
+    "08-drift-cam.png",
+    "10-mobile-landscape-menu.png"
+  ],
+  "errors": [],
+  "ok": true
+}

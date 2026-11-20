@@ -28,6 +28,8 @@ body,
   background: var(--bg0);
   color: var(--text);
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 canvas {
@@ -646,7 +648,10 @@ canvas {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 1rem 1.2rem 1.1rem;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-left: max(1.2rem, env(safe-area-inset-left));
+  padding-right: max(1.2rem, env(safe-area-inset-right));
+  padding-bottom: max(1.1rem, env(safe-area-inset-bottom));
 }
 
 .hud-top {
@@ -855,11 +860,235 @@ canvas {
   letter-spacing: 0.08em;
 }
 
+.radio-hud {
+  pointer-events: auto;
+  position: absolute;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: calc(10.5rem + env(safe-area-inset-bottom));
+  width: min(240px, 42vw);
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(78, 240, 255, 0.28);
+  background: linear-gradient(180deg, rgba(10, 14, 24, 0.92), rgba(4, 8, 14, 0.88));
+  backdrop-filter: blur(12px);
+  z-index: 5;
+}
+
+.radio-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+
+.radio-head b {
+  color: var(--accent);
+  font-family: 'Syne', sans-serif;
+  font-size: 0.68rem;
+}
+
+.radio-stations {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+}
+
+.radio-stations button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 0.2rem;
+  cursor: pointer;
+}
+
+.radio-stations button.active {
+  border-color: var(--accent);
+  background: rgba(78, 240, 255, 0.18);
+  color: #041018;
+  background: linear-gradient(180deg, #7af5ff, #3de0ff);
+}
+
+.speed-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.72) 100%);
+  box-shadow: inset 0 0 80px rgba(78, 240, 255, 0.12);
+  z-index: 2;
+}
+
+.hit-stop-flash {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 3;
+}
+
+.cash-popups {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 28%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 0.35rem;
+  z-index: 6;
+  text-align: center;
+}
+
+.cash-popup {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.55rem;
+  letter-spacing: 0.06em;
+  color: #7aff9a;
+  text-shadow: 0 0 18px rgba(122, 255, 154, 0.55);
+  animation: cash-rise 2.1s ease-out forwards;
+}
+
+@keyframes cash-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px);
+  }
+}
+
+.photo-toolbar {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(5.2rem + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(78, 240, 255, 0.3);
+  background: rgba(6, 10, 18, 0.88);
+  backdrop-filter: blur(10px);
+  z-index: 6;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+}
+
+.photo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.photo-row button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 0.3rem 0.5rem;
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.photo-row button.active {
+  border-color: var(--accent);
+  background: rgba(78, 240, 255, 0.2);
+}
+
+.photo-filter-overlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  mix-blend-mode: soft-light;
+}
+
+.photo-filter-overlay.filter-neon {
+  background: linear-gradient(120deg, rgba(78, 240, 255, 0.25), rgba(255, 77, 122, 0.2));
+}
+
+.photo-filter-overlay.filter-noir {
+  background: rgba(0, 0, 0, 0.35);
+  mix-blend-mode: saturation;
+}
+
+.photo-filter-overlay.filter-warm {
+  background: linear-gradient(180deg, rgba(255, 160, 60, 0.2), rgba(80, 20, 40, 0.15));
+}
+
+.install-banner {
+  position: fixed;
+  left: max(0.75rem, env(safe-area-inset-left));
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(78, 240, 255, 0.35);
+  background: linear-gradient(115deg, rgba(8, 14, 28, 0.96), rgba(20, 8, 24, 0.94));
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.install-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.install-copy strong {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+}
+
+.install-copy span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.install-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.install-go,
+.install-dismiss {
+  border: 1px solid rgba(78, 240, 255, 0.35);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.install-go {
+  background: linear-gradient(90deg, #6cf4ff, #3de0ff);
+  color: #041018;
+  border-color: #9cf7ff;
+}
+
+.install-dismiss {
+  background: transparent;
+  color: var(--muted);
+}
+
 .touch-toggle {
   pointer-events: auto;
   position: absolute;
-  top: 3.2rem;
-  right: 1.1rem;
+  top: calc(3.2rem + env(safe-area-inset-top));
+  right: max(1.1rem, env(safe-area-inset-right));
   z-index: 3;
   border: 1px solid rgba(78, 240, 255, 0.28);
   background: linear-gradient(180deg, rgba(12, 18, 30, 0.88), rgba(5, 8, 16, 0.82));
@@ -886,7 +1115,7 @@ canvas {
 .touch-right {
   pointer-events: auto;
   position: absolute;
-  bottom: 7.5rem;
+  bottom: calc(7.5rem + env(safe-area-inset-bottom));
   display: flex;
   gap: 0.55rem;
 }

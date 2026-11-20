@@ -2,7 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { BakeShadows, Environment, PerspectiveCamera, AdaptiveDpr, Preload } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
-import { EffectComposer, Bloom } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, DepthOfField, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { Stage } from './Stage'
 import { HeroCar } from './HeroCar'
@@ -21,6 +21,68 @@ function PlayerPosSync({ playerPos }: { playerPos: React.MutableRefObject<THREE.
     const w = window as unknown as { __playerPos?: THREE.Vector3 }
     if (w.__playerPos) playerPos.current.copy(w.__playerPos)
   })
+  return null
+}
+
+/** QA: `?qa=1` auto-tunes radio/cam then freezes WebGL so Playwright can scrape #qa-stats / CDP shots. */
+function QaBridge() {
+  const { gl } = useThree()
+  const born = useRef(performance.now())
+  const frozen = useRef(false)
+
+  const dump = (glRef: THREE.WebGLRenderer) => {
+    const s = useGameStore.getState()
+    const w = window as unknown as { __cops?: number; __worldMarkers?: unknown[] }
+    const payload = {
+      heat: s.heat,
+      cops: w.__cops ?? 0,
+      markers: w.__worldMarkers?.length ?? 0,
+      mode: s.mode,
+      camera: s.camera,
+      radio: s.radio,
+    }
+    const raw = JSON.stringify(payload)
+    const el = document.getElementById('qa-stats')
+    if (el) el.textContent = raw
+    console.log('__QA_STATS__' + raw)
+    ;(window as unknown as { __qaFrozen?: boolean }).__qaFrozen = true
+    glRef.setAnimationLoop(null)
+  }
+
+  const tuned = useRef(false)
+  useFrame(() => {
+    if (frozen.current) return
+    const w = window as unknown as { __QA?: boolean }
+    const qa = w.__QA === true || new URLSearchParams(window.location.search).get('qa') === '1'
+    if (!qa) return
+    const t = performance.now() - born.current
+    if (!tuned.current && t > 4000) {
+      tuned.current = true
+      useGameStore.getState().setRadio('phonk')
+      useGameStore.getState().setCamera('drift')
+    }
+    if (t >= 6000) {
+      frozen.current = true
+      dump(gl)
+    }
+  })
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'F8') {
+        useGameStore.getState().setRadio('phonk')
+        useGameStore.getState().setCamera('drift')
+      }
+      if (e.code === 'F7') useGameStore.getState().setCamera('photo')
+      if (e.code === 'F9') {
+        frozen.current = true
+        dump(gl)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [gl])
+
   return null
 }
 
@@ -97,11 +159,14 @@ export function GameCanvas() {
   const quality = useGameStore((s) => s.quality)
   const atmosphere = useGameStore((s) => s.atmosphere)
   const heat = useGameStore((s) => s.heat)
+  const cameraMode = useGameStore((s) => s.camera)
+  const photoDof = useGameStore((s) => s.photoDof)
   const qs = useMemo(() => qualitySettings(quality), [quality])
   const atm = getAtmosphere(atmosphere)
   const spawn = getStageWaypoints(stage)[0]
   const playerPos = useRef(new THREE.Vector3(spawn.x, spawn.y + 2, spawn.z))
   const bloomIntensity = qs.bloom ? (heat > 0 ? 0.28 : atm.rain ? 0.22 : 0.16) : 0
+  const photo = cameraMode === 'photo'
 
   return (
     <Canvas
@@ -135,7 +200,7 @@ export function GameCanvas() {
 
       <Suspense fallback={null}>
         <CityEnvironment />
-        <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60} numSolverIterations={8}>
+        <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60} numSolverIterations={8} paused={photo}>
           <Stage key={stage} stage={stage} />
           <HeroCar key={`hero-${stage}`} />
           <Traffic stage={stage} playerPos={playerPos} />
@@ -152,9 +217,17 @@ export function GameCanvas() {
         <Preload all />
       </Suspense>
 
-      {qs.bloom ? (
+      <QaBridge />
+
+      {qs.bloom || photo ? (
         <EffectComposer multisampling={0} enableNormalPass={false}>
-          <Bloom intensity={bloomIntensity} luminanceThreshold={heat > 0 ? 0.72 : 0.88} mipmapBlur />
+          {qs.bloom && (
+            <Bloom intensity={bloomIntensity} luminanceThreshold={heat > 0 ? 0.72 : 0.88} mipmapBlur />
+          )}
+          {photo && photoDof && (
+            <DepthOfField focusDistance={0.012} focalLength={0.04} bokehScale={4.5} height={480} />
+          )}
+          {photo && <Vignette eskil={false} offset={0.25} darkness={0.55} />}
         </EffectComposer>
       ) : null}
       <AdaptiveDpr />

@@ -46,6 +46,13 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
   const cashBanked = useRef(0)
   const nitroRef = useRef(mult.nitroCapacity)
   const driftCombo = useRef(0)
+  const airTime = useRef(0)
+  const lastDriftPopup = useRef(0)
+  const nearMissCd = useRef(0)
+  const lastVy = useRef(0)
+  const cameraMode = useGameStore((s) => s.camera)
+  const pushCashPopup = useGameStore((s) => s.pushCashPopup)
+  const triggerHitStop = useGameStore((s) => s.triggerHitStop)
   const skids = useRef<{ pos: THREE.Vector3; life: number }[]>([])
   const skidMesh = useRef<THREE.InstancedMesh>(null)
   const smokeMesh = useRef<THREE.InstancedMesh>(null)
@@ -104,7 +111,9 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
     const rb = body.current
     const controller = vehicleController.current
     if (!rb || !controller) return
-    const clampedDt = Math.min(dt, 1 / 30)
+    if (cameraMode === 'photo') return
+    const hitStop = performance.now() < useGameStore.getState().hitStopUntil
+    const clampedDt = Math.min(dt, 1 / 30) * (hitStop ? 0.2 : 1)
 
     if (keys.current.camera) {
       toggleCamera()
@@ -115,6 +124,7 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
       keys.current.steer !== 0
         ? -keys.current.steer
         : (keys.current.left ? 1 : 0) + (keys.current.right ? -1 : 0)
+    ;(window as unknown as { __steer?: number }).__steer = steerAxis
     const throttle = keys.current.forward ? 1 : 0
     const brake = keys.current.back ? 1 : 0
     const drifting = keys.current.drift
@@ -316,6 +326,37 @@ function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarage
         cashBanked.current += gained * 10
       }
     }
+
+    // Juice: drift king / near miss / air time popups + hit-stop
+    if (isDrifting && driftCombo.current > 2.5 && performance.now() - lastDriftPopup.current > 4000) {
+      const bonus = 450
+      useGarageStore.getState().addCash(bonus)
+      pushCashPopup('DRIFT KING +$450')
+      lastDriftPopup.current = performance.now()
+    }
+    nearMissCd.current = Math.max(0, nearMissCd.current - clampedDt)
+    const trafficNear = (window as unknown as { __trafficNear?: number }).__trafficNear ?? 999
+    if (nearMissCd.current <= 0 && trafficNear > 2.2 && trafficNear < 5.5 && speedKmh > 90) {
+      useGarageStore.getState().addCash(150)
+      pushCashPopup('NEAR MISS +$150')
+      nearMissCd.current = 5
+    }
+    const grounded = !!world.castRay(new rapier.Ray(t, { x: 0, y: -1, z: 0 }), 1.2, true, undefined, undefined, undefined, rb)
+    if (!grounded && v0.y > 0.5) airTime.current += clampedDt
+    else {
+      if (airTime.current > 0.55) {
+        useGarageStore.getState().addCash(300)
+        pushCashPopup('AIR TIME +$300')
+        triggerHitStop(50)
+      }
+      airTime.current = 0
+    }
+    const impact = Math.abs(v0.y - lastVy.current)
+    if (impact > 8 && grounded) {
+      triggerHitStop(50)
+      ;(window as unknown as { __impact?: number }).__impact = Math.min(1, impact / 14)
+    }
+    lastVy.current = v0.y
 
     audio.update(800 + Math.min(7000, speed * 180), boosting, isDrifting)
 

@@ -8,9 +8,13 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "optimize-models": "node tools/optimize-models.mjs"
+    "optimize-models": "node tools/optimize-models.mjs",
+    "cap:sync": "npx cap sync",
+    "cap:add:android": "npx cap add android",
+    "qa": "node tools/qa-e2e.mjs"
   },
   "dependencies": {
+    "@capacitor/core": "^8.6.2",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "@react-three/postprocessing": "^3.2.2",
@@ -23,6 +27,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@gltf-transform/cli": "^4.5.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",

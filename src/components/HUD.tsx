@@ -1,10 +1,12 @@
-import { useGameStore } from '../store/gameStore'
+import { useGameStore, CAMERA_LABELS, type PhotoFilter } from '../store/gameStore'
 import { useGarageStore } from '../store/garageStore'
 import { getCar } from '../garage/cars'
 import { getStageDef } from '../world/stages'
 import { ATMOSPHERES } from '../world/atmosphere'
 import { ESCAPE_SECONDS, HEAT_MAX } from '../systems/heatSystem'
 import { MobileTouchControls } from './MobileTouchControls'
+import { RadioHUD } from './RadioHUD'
+import { JuiceFX } from './JuiceFX'
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60)
@@ -35,7 +37,13 @@ export function HUD() {
   const heatEscape = useGameStore((s) => s.heatEscape)
   const escapePayout = useGameStore((s) => s.escapePayout)
   const atmosphere = useGameStore((s) => s.atmosphere)
+  const photoFilter = useGameStore((s) => s.photoFilter)
+  const photoDof = useGameStore((s) => s.photoDof)
   const setAtmosphere = useGameStore((s) => s.setAtmosphere)
+  const setCamera = useGameStore((s) => s.setCamera)
+  const toggleCamera = useGameStore((s) => s.toggleCamera)
+  const setPhotoFilter = useGameStore((s) => s.setPhotoFilter)
+  const setPhotoDof = useGameStore((s) => s.setPhotoDof)
   const setScreen = useGameStore((s) => s.setScreen)
   const cash = useGarageStore((s) => s.cash)
   const activeCar = useGarageStore((s) => s.activeCar)
@@ -45,15 +53,19 @@ export function HUD() {
   const rpmPct = Math.min(100, (rpm / 8000) * 100)
   const nitroPct = Math.max(0, Math.min(100, nitro))
   const escapePct = Math.min(100, (heatEscape / ESCAPE_SECONDS) * 100)
+  const filters: PhotoFilter[] = ['none', 'neon', 'noir', 'warm']
 
   return (
     <div className="hud">
+      <JuiceFX />
       <div className="hud-top">
         <div className="pill">{stageDef.name.toUpperCase()}</div>
         <div className="pill">{modeLabel(mode)}</div>
         <div className="pill">{car.name}</div>
         <div className="pill">${cash.toLocaleString()}</div>
-        <div className="pill">CAM {camera.toUpperCase()}</div>
+        <button type="button" className="pill btn cam-btn" onClick={() => toggleCamera()} title="Cycle camera (C)">
+          CAM {CAMERA_LABELS[camera]}
+        </button>
         <button type="button" className="pill btn" onClick={() => setScreen('menu')}>
           MENU
         </button>
@@ -90,7 +102,37 @@ export function HUD() {
             {a.label}
           </button>
         ))}
+        <button type="button" className="atm-chip" onClick={() => setCamera('chase')}>
+          Chase
+        </button>
+        <button type="button" className={`atm-chip ${camera === 'drift' ? 'active' : ''}`} onClick={() => setCamera('drift')}>
+          Drift Cam
+        </button>
+        <button type="button" className={`atm-chip ${camera === 'hood' ? 'active' : ''}`} onClick={() => setCamera('hood')}>
+          Hood
+        </button>
+        <button type="button" className={`atm-chip ${camera === 'photo' ? 'active' : ''}`} onClick={() => setCamera('photo')}>
+          Photo
+        </button>
       </div>
+
+      {camera === 'photo' && (
+        <div className="photo-toolbar" aria-label="Photo mode">
+          <span>PHOTO MODE — drag to orbit</span>
+          <div className="photo-row">
+            {filters.map((f) => (
+              <button key={f} type="button" className={photoFilter === f ? 'active' : ''} onClick={() => setPhotoFilter(f)}>
+                {f.toUpperCase()}
+              </button>
+            ))}
+            <button type="button" className={photoDof ? 'active' : ''} onClick={() => setPhotoDof(!photoDof)}>
+              DOF {photoDof ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <RadioHUD />
 
       <div className="hud-bottom">
         <div className="speedo">

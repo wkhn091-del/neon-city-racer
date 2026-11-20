@@ -213,6 +213,31 @@ Shared gate (Rule 5) for every phase:
 
 ---
 
+## Phase 9 — In-Car Radio, Cinematic Replay/Photo Mode & Native App Packaging
+
+**Goal:** Offline procedural radio, juice cameras/photo mode, and Capacitor-ready PWA packaging with a final Playwright E2E audit + GitHub push.
+
+### Work
+
+- Car-stereo HUD: `OFF` / `NIGHT PHONK BASS` / `SYNTHWAVE DRIVE` / `LO-FI CRUISE` via Web Audio (no MP3s); duck on RPM/collisions
+- Cameras: Dynamic Chase, Close Drift Cam, Hood/Bumper, Pause Photo Mode (orbit + DOF/filter)
+- Juice: speed-line vignette >220 km/h, 50ms hit-stop on big hits/jumps, floating `+$$$` popups
+- Safe-area CSS, Install App banner, `@capacitor/core` + `capacitor.config.ts`
+- Playwright E2E → `./qa_screenshots/`; push to GitHub
+
+### PASS
+
+- [x] Radio stations switch offline; audio ducks under load
+- [x] All 4 cameras + photo mode usable; juice FX fire
+- [x] Safe-area + install banner + Capacitor scaffold present
+- [x] E2E screenshots in `qa_screenshots/`; zero TS / console errors; pushed to GitHub
+
+### FAIL (block ship)
+
+- External MP3 dependency, photo mode broken, or push/gate red
+
+---
+
 ## Session commitment
 
 All subsequent work in this project session **must** follow `.cursor/rules/game-guardrails.mdc` (`alwaysApply: true`). When ambiguous, prefer Sketchfab/Poly Haven assets, marker parsing, and gate verification over speed.
