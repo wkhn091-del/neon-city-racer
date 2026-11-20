@@ -1,0 +1,786 @@
+{
+  "space": "gltf_yup",
+  "source": "world_map.glb",
+  "markers": [
+    {
+      "name": "Dealership_Spot_01",
+      "position": [
+        -10,
+        18.7719,
+        6
+      ],
+      "quaternion": [
+        0,
+        0,
+        -0.0006403636652976274,
+        1
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Dealership_Spot_02",
+      "position": [
+        -5,
+        18.8012,
+        10
+      ],
+      "quaternion": [
+        0,
+        0,
+        0.013008199632167816,
+        0.9999154806137085
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Dealership_Spot_03",
+      "position": [
+        1,
+        19.4165,
+        10
+      ],
+      "quaternion": [
+        0,
+        0,
+        0.03697766363620758,
+        0.9993160963058472
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Dealership_Spot_04",
+      "position": [
+        10,
+        21.2605,
+        8
+      ],
+      "quaternion": [
+        0,
+        0,
+        0.13484252989292145,
+        0.9908671379089355
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_01",
+      "position": [
+        55.5,
+        20.2798,
+        3
+      ],
+      "quaternion": [
+        0.045910343527793884,
+        -0.9989455938339233,
+        0,
+        7.541829205592876e-8
+      ],
+      "forward": [
+        0,
+        0,
+        -1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_02",
+      "position": [
+        50.0535,
+        19.3878,
+        -8.2707
+      ],
+      "quaternion": [
+        -0.017833400517702103,
+        -0.947903037071228,
+        0.005982767324894667,
+        0.31800350546836853
+      ],
+      "forward": [
+        -0.6031,
+        0,
+        -0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_03",
+      "position": [
+        31.6675,
+        22.5373,
+        -22.6804
+      ],
+      "quaternion": [
+        -0.0768422856926918,
+        -0.834148645401001,
+        0.05010050907731056,
+        0.543857753276825
+      ],
+      "forward": [
+        -0.915,
+        0,
+        -0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_04",
+      "position": [
+        7,
+        20.2058,
+        -24.5
+      ],
+      "quaternion": [
+        -0.065019391477108,
+        -0.7041110992431641,
+        0.0650193840265274,
+        0.7041111588478088
+      ],
+      "forward": [
+        -1,
+        0,
+        0
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_05",
+      "position": [
+        -13.6675,
+        0.65,
+        -22.6804
+      ],
+      "quaternion": [
+        0,
+        -0.5461604595184326,
+        0,
+        0.8376805782318115
+      ],
+      "forward": [
+        -0.915,
+        0,
+        0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_06",
+      "position": [
+        -28.0535,
+        18.0741,
+        -10.2707
+      ],
+      "quaternion": [
+        0.03373396769165993,
+        -0.3162657916545868,
+        -0.10055404901504517,
+        0.9427232146263123
+      ],
+      "forward": [
+        -0.6031,
+        0,
+        0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_07",
+      "position": [
+        -38.5,
+        17.0998,
+        8
+      ],
+      "quaternion": [
+        0,
+        0,
+        0.050302792340517044,
+        0.9987340569496155
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_08",
+      "position": [
+        -27.0535,
+        17.1997,
+        17.2707
+      ],
+      "quaternion": [
+        -0.0026466066483408213,
+        0.3180486857891083,
+        -0.007888993248343468,
+        0.94803786277771
+      ],
+      "forward": [
+        0.6031,
+        0,
+        0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_09",
+      "position": [
+        -16.6675,
+        18.4896,
+        35.6804
+      ],
+      "quaternion": [
+        -0.021984484046697617,
+        0.5457178354263306,
+        -0.033718980848789215,
+        0.8370016813278198
+      ],
+      "forward": [
+        0.915,
+        0,
+        0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Pedestrian_Path_10",
+      "position": [
+        10,
+        24.3144,
+        35.5
+      ],
+      "quaternion": [
+        -0.07618404924869537,
+        0.7029907703399658,
+        -0.07618403434753418,
+        0.7029907703399658
+      ],
+      "forward": [
+        1,
+        0,
+        0
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Spawn_Player",
+      "position": [
+        67,
+        20.6777,
+        5
+      ],
+      "quaternion": [
+        -0.3945750892162323,
+        -0.9188637137413025,
+        0,
+        6.937228391734607e-8
+      ],
+      "forward": [
+        0,
+        0,
+        -1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_01",
+      "position": [
+        67,
+        20.6777,
+        5
+      ],
+      "quaternion": [
+        -0.3945750892162323,
+        -0.9188637137413025,
+        0,
+        6.937228391734607e-8
+      ],
+      "forward": [
+        0,
+        0,
+        -1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_02",
+      "position": [
+        54.6314,
+        21.0042,
+        -13
+      ],
+      "quaternion": [
+        0.25634193420410156,
+        -0.9127578735351562,
+        -0.08599785715341568,
+        0.306212842464447
+      ],
+      "forward": [
+        -0.6031,
+        0,
+        -0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_03",
+      "position": [
+        37.5,
+        17.6783,
+        -33.3731
+      ],
+      "quaternion": [
+        -0.0017385449027642608,
+        -0.837678849697113,
+        0.0011335163144394755,
+        0.5461593866348267
+      ],
+      "forward": [
+        -0.915,
+        0,
+        -0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_04",
+      "position": [
+        10,
+        0.65,
+        -37
+      ],
+      "quaternion": [
+        0,
+        -0.7071066498756409,
+        0,
+        0.70710688829422
+      ],
+      "forward": [
+        -1,
+        0,
+        0
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_05",
+      "position": [
+        -14.5,
+        20.2414,
+        -34.3731
+      ],
+      "quaternion": [
+        0.0475870780646801,
+        -0.5440834164619446,
+        -0.07298728078603745,
+        0.8344947695732117
+      ],
+      "forward": [
+        -0.915,
+        0,
+        0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_06",
+      "position": [
+        -37.6314,
+        16.9354,
+        -18
+      ],
+      "quaternion": [
+        0.032652951776981354,
+        -0.316379189491272,
+        -0.09733176976442337,
+        0.9430612325668335
+      ],
+      "forward": [
+        -0.6031,
+        0,
+        0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_07",
+      "position": [
+        -48,
+        20.0326,
+        8
+      ],
+      "quaternion": [
+        0,
+        0,
+        -0.04029339551925659,
+        0.9991878867149353
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_08",
+      "position": [
+        -37.6314,
+        17.8633,
+        26
+      ],
+      "quaternion": [
+        0.005457551218569279,
+        0.31801289319992065,
+        0.016267839819192886,
+        0.9479311108589172
+      ],
+      "forward": [
+        0.6031,
+        0,
+        0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_09",
+      "position": [
+        -15.5,
+        18.8837,
+        41.3731
+      ],
+      "quaternion": [
+        -0.03370843455195427,
+        0.5451192855834961,
+        -0.05170074477791786,
+        0.8360835909843445
+      ],
+      "forward": [
+        0.915,
+        0,
+        0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_10",
+      "position": [
+        12,
+        25.8126,
+        47
+      ],
+      "quaternion": [
+        -0.04433161020278931,
+        0.7057157158851624,
+        -0.04433161020278931,
+        0.7057157754898071
+      ],
+      "forward": [
+        1,
+        0,
+        0
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_11",
+      "position": [
+        37.5,
+        25.8243,
+        41.3731
+      ],
+      "quaternion": [
+        -0.009283171966671944,
+        0.8376291394233704,
+        -0.0060525452718138695,
+        0.5461269617080688
+      ],
+      "forward": [
+        0.915,
+        0,
+        -0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_A_12",
+      "position": [
+        57.6314,
+        23.886,
+        24
+      ],
+      "quaternion": [
+        0.12645617127418518,
+        0.939599335193634,
+        0.042423635721206665,
+        0.31521764397621155
+      ],
+      "forward": [
+        0.6031,
+        0,
+        -0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_01",
+      "position": [
+        65.8163,
+        21.8083,
+        26.9201
+      ],
+      "quaternion": [
+        -0.014012875035405159,
+        -0.31775084137916565,
+        0.04176950454711914,
+        0.9471501111984253
+      ],
+      "forward": [
+        -0.6031,
+        0,
+        0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_02",
+      "position": [
+        38.1222,
+        22.5193,
+        47.3207
+      ],
+      "quaternion": [
+        -0.07730521261692047,
+        -0.5406617522239685,
+        0.1185678243637085,
+        0.8292469382286072
+      ],
+      "forward": [
+        -0.915,
+        0,
+        0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_03",
+      "position": [
+        10,
+        27.0123,
+        53.5
+      ],
+      "quaternion": [
+        -0.016185032203793526,
+        -0.7069214582443237,
+        0.016185034066438675,
+        0.7069215774536133
+      ],
+      "forward": [
+        -1,
+        0,
+        0
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_04",
+      "position": [
+        -20.1222,
+        18.0617,
+        49.3207
+      ],
+      "quaternion": [
+        0.07541494071483612,
+        -0.83427894115448,
+        -0.04916989430785179,
+        0.5439426302909851
+      ],
+      "forward": [
+        -0.915,
+        0,
+        -0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_05",
+      "position": [
+        -42.8163,
+        17.4197,
+        31.9201
+      ],
+      "quaternion": [
+        0.006170844193547964,
+        -0.9480507373809814,
+        -0.0020702010951936245,
+        0.31805291771888733
+      ],
+      "forward": [
+        -0.6031,
+        0,
+        -0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_06",
+      "position": [
+        -51.5,
+        20.0647,
+        3
+      ],
+      "quaternion": [
+        -0.0306844562292099,
+        -0.9995291233062744,
+        0,
+        7.54623599164006e-8
+      ],
+      "forward": [
+        0,
+        0,
+        -1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_07",
+      "position": [
+        -42.8163,
+        17.1557,
+        -19.9201
+      ],
+      "quaternion": [
+        0.032409992069005966,
+        0.9475166201591492,
+        0.010872931219637394,
+        0.31787365674972534
+      ],
+      "forward": [
+        0.6031,
+        0,
+        -0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_08",
+      "position": [
+        -17.1222,
+        19.7715,
+        -40.3207
+      ],
+      "quaternion": [
+        0.04579881206154823,
+        0.8364276885986328,
+        0.029860425740480423,
+        0.5453435182571411
+      ],
+      "forward": [
+        0.915,
+        0,
+        -0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_09",
+      "position": [
+        13,
+        22.2104,
+        -46.5
+      ],
+      "quaternion": [
+        -0.22919605672359467,
+        0.6689314246177673,
+        -0.22919602692127228,
+        0.6689313054084778
+      ],
+      "forward": [
+        1,
+        0,
+        0
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_10",
+      "position": [
+        38.1222,
+        17.5128,
+        -37.3207
+      ],
+      "quaternion": [
+        -0.013680004514753819,
+        0.5459891557693481,
+        -0.020981883630156517,
+        0.837417721748352
+      ],
+      "forward": [
+        0.915,
+        0,
+        0.4034
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_11",
+      "position": [
+        62.8163,
+        0.65,
+        -19.9201
+      ],
+      "quaternion": [
+        0,
+        0.3180597126483917,
+        0,
+        0.9480707049369812
+      ],
+      "forward": [
+        0.6031,
+        0,
+        0.7977
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    },
+    {
+      "name": "Traffic_Lane_B_12",
+      "position": [
+        68.5,
+        17.9868,
+        8
+      ],
+      "quaternion": [
+        0,
+        0,
+        -0.3945750892162323,
+        0.9188637137413025
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "note": "quaternion is local node; prefer GLB traverse at runtime"
+    }
+  ]
+}

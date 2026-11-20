@@ -42,21 +42,21 @@ export type RaycastFn = (
 ) => RayHit
 
 const WHEEL_RADIUS = 0.34
-const REST_LENGTH = 0.55
-const SPRING = 42000
-const DAMPER = 3500
-const RAY_EXTRA = 1.25
+const REST_LENGTH = 0.38
+const SPRING = 14000
+const DAMPER = 4200
+const RAY_EXTRA = 0.55
 const MAX_STEER = 0.55
-const ENGINE_FORCE = 12000
-const BOOST_FORCE = 8000
-const BRAKE_FORCE = 16000
-const ROLLING = 16
+const ENGINE_FORCE = 11000
+const BOOST_FORCE = 7000
+const BRAKE_FORCE = 15000
+const ROLLING = 18
 
 export const DEFAULT_WHEELS: WheelConfig[] = [
-  { id: 'FL', localPosition: new THREE.Vector3(-0.95, 0.05, 1.3), isSteering: true, isPowered: false },
-  { id: 'FR', localPosition: new THREE.Vector3(0.95, 0.05, 1.3), isSteering: true, isPowered: false },
-  { id: 'RL', localPosition: new THREE.Vector3(-0.97, 0.05, -1.3), isSteering: false, isPowered: true },
-  { id: 'RR', localPosition: new THREE.Vector3(0.97, 0.05, -1.3), isSteering: false, isPowered: true },
+  { id: 'FL', localPosition: new THREE.Vector3(-0.95, 0.05, 1.28), isSteering: true, isPowered: false },
+  { id: 'FR', localPosition: new THREE.Vector3(0.95, 0.05, 1.28), isSteering: true, isPowered: false },
+  { id: 'RL', localPosition: new THREE.Vector3(-0.97, 0.05, -1.28), isSteering: false, isPowered: true },
+  { id: 'RR', localPosition: new THREE.Vector3(0.97, 0.05, -1.28), isSteering: false, isPowered: true },
 ]
 
 export class VehicleController {
@@ -135,7 +135,8 @@ export class VehicleController {
       if (!grounded) continue
 
       const suspVel = this.vel.dot(this.up)
-      const springForce = THREE.MathUtils.clamp(compression * SPRING - suspVel * DAMPER, -8000, 18000)
+      // Soft springs + hard clamp — no more trampoline off the deck
+      const springForce = THREE.MathUtils.clamp(compression * SPRING - suspVel * DAMPER, -2500, 5500)
       this.tmpForce.copy(this.up).multiplyScalar(Math.max(0, springForce) * dt)
       body.applyImpulseAtPoint(
         { x: this.tmpForce.x, y: this.tmpForce.y, z: this.tmpForce.z },
@@ -180,9 +181,11 @@ export class VehicleController {
       }
     }
 
-    if (this.up.y < 0.92) {
-      const correct = new THREE.Vector3(0, 1, 0).cross(this.up).multiplyScalar(5 * dt)
+    if (this.up.y < 0.98) {
+      const correct = new THREE.Vector3(0, 1, 0).cross(this.up).multiplyScalar(18 * dt)
       body.applyTorqueImpulse(correct, true)
+      const av = body.angvel()
+      body.setAngvel({ x: av.x * 0.85, y: av.y, z: av.z * 0.85 }, true)
     }
 
     let driftScoreDelta = 0

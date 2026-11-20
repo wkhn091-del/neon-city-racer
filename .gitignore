@@ -35,6 +35,18 @@ __pycache__/
 .playwright-mcp/
 qa-*.png
 
+# Intermediate / oversized Blender hunt exports (keep shipping GLBs only)
+public/models/_hunt/
+public/models/_bak_pre_phase1/
+public/models/_opt/
+public/models/_phase1/
+public/models/_phase1_fixed/
+public/models/_optimized/
+public/models/stages/
+public/models/world_map_raw*.glb
+public/models/world_map_named.glb
+agent-tools/
+
 # OS / env
 .env
 .env.*

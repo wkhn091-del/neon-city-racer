@@ -1,28 +1,37 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
-import { RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
+import { CuboidCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
-import {
-  DEFAULT_WHEELS,
-  VehicleController,
-  type WheelId,
-} from '../physics/VehicleController'
-import { useKeyboard } from '../hooks/useKeyboard'
+import { useControls } from '../hooks/useControls'
 import { PAINT_COLORS, useGameStore } from '../store/gameStore'
+import { useGarageStore } from '../store/garageStore'
+import { getCar } from '../garage/cars'
+import { fitPlayableCar, sanitizeCarClone } from '../garage/sanitizeCar'
 import { EngineAudio } from '../audio/EngineAudio'
 import { getStageWaypoints, nearestWaypointIndex } from '../track/waypoints'
+import { getCachedWorldMarkers } from '../world/markerCache'
+import { getSpawnMarker } from '../world/markers'
+import { STREET_WHEELS, useRapierVehicle } from '../physics/useRapierVehicle'
 
-useGLTF.preload('/models/hero_car.glb')
+const MAX_STEER = Math.PI / 7
+const ENGINE = 2400
+const BOOST_ENGINE = 1600
+const BRAKE = 18
+const DRIFT_REAR_SLIP = 0.55
+const NORMAL_REAR_SLIP = 2.0
 
-type Skid = { pos: THREE.Vector3; life: number }
-
+/** Single player car — remount when activeCar changes. */
 export function HeroCar() {
-  const { scene } = useGLTF('/models/hero_car.glb')
+  const activeCarId = useGarageStore((s) => s.activeCar)
+  return <HeroCarBody key={activeCarId} activeCarId={activeCarId} />
+}
+
+function HeroCarBody({ activeCarId }: { activeCarId: ReturnType<typeof useGarageStore.getState>['activeCar'] }) {
+  const carDef = getCar(activeCarId)
+  const { scene } = useGLTF(carDef.modelUrl)
   const body = useRef<RapierRigidBody>(null)
-  const group = useRef<THREE.Group>(null)
-  const keys = useKeyboard()
-  const controller = useMemo(() => new VehicleController(), [])
+  const keys = useControls()
   const audio = useMemo(() => new EngineAudio(), [])
   const { rapier, world } = useRapier()
   const paint = useGameStore((s) => s.paint)
@@ -30,49 +39,33 @@ export function HeroCar() {
   const mode = useGameStore((s) => s.mode)
   const setTelemetry = useGameStore((s) => s.setTelemetry)
   const toggleCamera = useGameStore((s) => s.toggleCamera)
-  const skids = useRef<Skid[]>([])
+  const cashBanked = useRef(0)
+  const nitroRef = useRef(100)
+  const driftCombo = useRef(0)
+  const skids = useRef<{ pos: THREE.Vector3; life: number }[]>([])
   const skidMesh = useRef<THREE.InstancedMesh>(null)
   const smokeMesh = useRef<THREE.InstancedMesh>(null)
-  const wheelNodes = useRef<Partial<Record<WheelId, THREE.Object3D>>>({})
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const flameRefs = useRef<THREE.Mesh[]>([])
+  const wheelsRef = useRef<(THREE.Object3D | null)[]>([null, null, null, null])
+  const visualWheels = useRef<(THREE.Object3D | null)[]>([null, null, null, null])
+  const snappedToMarker = useRef(false)
+
+  const { vehicleController } = useRapierVehicle(body, wheelsRef, STREET_WHEELS)
 
   const car = useMemo(() => {
-    const c = scene.clone(true)
-    const wheels: Partial<Record<WheelId, THREE.Object3D>> = {}
+    const c = sanitizeCarClone(scene.clone(true))
+    c.updateMatrixWorld(true)
+    fitPlayableCar(c, 4.5)
+    const found: (THREE.Object3D | null)[] = [null, null, null, null]
     c.traverse((obj) => {
-      const name = obj.name
-      ;(['FL', 'FR', 'RL', 'RR'] as WheelId[]).forEach((id) => {
-        if (name === `Wheel_${id}` || name.startsWith(`Wheel_${id}`)) {
-          // Prefer empty/parent named exactly Wheel_XX
-          if (name === `Wheel_${id}` || !wheels[id]) wheels[id] = obj
-        }
-      })
+      const n = obj.name.toUpperCase()
+      if (obj.name === 'Wheel_FL' || /EXT_TYRE_LF|TYRE_LF/.test(n)) found[0] = obj
+      if (obj.name === 'Wheel_FR' || /EXT_TYRE_RF|TYRE_RF/.test(n)) found[1] = obj
+      if (obj.name === 'Wheel_RL' || /EXT_TYRE_LR|TYRE_LR/.test(n)) found[2] = obj
+      if (obj.name === 'Wheel_RR' || /EXT_TYRE_RR|TYRE_RR/.test(n)) found[3] = obj
     })
-    // If only tire/rim children exist, parent them under synthetic pivots
-    ;(['FL', 'FR', 'RL', 'RR'] as WheelId[]).forEach((id) => {
-      if (!wheels[id]) {
-        const parts: THREE.Object3D[] = []
-        c.traverse((o) => {
-          if (o.name.startsWith(`Wheel_${id}`)) parts.push(o)
-        })
-        if (parts.length) {
-          const pivot = new THREE.Group()
-          pivot.name = `Wheel_${id}`
-          const cfg = DEFAULT_WHEELS.find((w) => w.id === id)!
-          pivot.position.copy(cfg.localPosition)
-          c.add(pivot)
-          parts.forEach((p) => {
-            const worldPos = p.getWorldPosition(new THREE.Vector3())
-            p.parent?.remove(p)
-            pivot.add(p)
-            p.position.copy(pivot.worldToLocal(worldPos))
-          })
-          wheels[id] = pivot
-        }
-      }
-    })
-    wheelNodes.current = wheels
+    visualWheels.current = found
     return c
   }, [scene])
 
@@ -106,7 +99,8 @@ export function HeroCar() {
 
   useFrame((state, dt) => {
     const rb = body.current
-    if (!rb) return
+    const controller = vehicleController.current
+    if (!rb || !controller) return
     const clampedDt = Math.min(dt, 1 / 30)
 
     if (keys.current.camera) {
@@ -114,54 +108,92 @@ export function HeroCar() {
       keys.current.camera = false
     }
 
-    const input = {
-      throttle: keys.current.forward ? 1 : 0,
-      brake: keys.current.back ? 1 : 0,
-      steer: (keys.current.left ? 1 : 0) + (keys.current.right ? -1 : 0),
-      drift: keys.current.drift,
-      boost: keys.current.boost,
-    }
+    const steerAxis =
+      keys.current.steer !== 0
+        ? -keys.current.steer
+        : (keys.current.left ? 1 : 0) + (keys.current.right ? -1 : 0)
+    const throttle = keys.current.forward ? 1 : 0
+    const brake = keys.current.back ? 1 : 0
+    const drifting = keys.current.drift
+    const boosting = keys.current.boost && nitroRef.current > 0
 
-    const raycast = (origin: THREE.Vector3, dir: THREE.Vector3, maxToi: number, exclude?: RapierRigidBody | null) => {
-      const ray = new rapier.Ray(origin, dir)
-      const hit = world.castRay(ray, maxToi, true, undefined, undefined, undefined, exclude ?? undefined)
-      return hit ? { timeOfImpact: hit.timeOfImpact } : null
+    if (boosting) nitroRef.current = Math.max(0, nitroRef.current - 28 * clampedDt)
+    else nitroRef.current = Math.min(100, nitroRef.current + 8 * clampedDt)
+
+    // Snap once to Blender Empty spawn after Stage extracts markers
+    if (!snappedToMarker.current) {
+      const markerSpawn = getSpawnMarker(getCachedWorldMarkers())
+      if (markerSpawn) {
+        snappedToMarker.current = true
+        const p = markerSpawn.position
+        rb.setTranslation({ x: p.x, y: p.y + 0.55, z: p.z }, true)
+        rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        rb.setAngvel({ x: 0, y: 0, z: 0 }, true)
+        const yaw = Math.atan2(markerSpawn.forward.x, markerSpawn.forward.z)
+        rb.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true)
+      }
     }
 
     // Anti-explode / recovery
     const t0 = rb.translation()
     const v0 = rb.linvel()
-    if (!Number.isFinite(t0.y) || t0.y > 40 || t0.y < -10 || Math.hypot(v0.x, v0.y, v0.z) > 120) {
+    if (!Number.isFinite(t0.y) || t0.y > 40 || t0.y < -4 || Math.hypot(v0.x, v0.y, v0.z) > 90) {
       const spawnPt = getStageWaypoints(stage)[0]
-      rb.setTranslation({ x: spawnPt.x, y: spawnPt.y + 1.4, z: spawnPt.z }, true)
+      rb.setTranslation({ x: spawnPt.x, y: spawnPt.y + 0.55, z: spawnPt.z }, true)
       rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
       rb.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      rb.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true)
+      rb.setRotation({ x: 0, y: Math.sin(Math.PI / 4), z: 0, w: Math.cos(Math.PI / 4) }, true)
     }
 
-    const tel = controller.step(rb, raycast, input, clampedDt)
+    const speed = Math.hypot(v0.x, v0.z)
+    const speedKmh = Math.hypot(v0.x, v0.y, v0.z) * 3.6
+    const engineForce =
+      throttle * ENGINE + (boosting ? BOOST_ENGINE : 0) - brake * ENGINE * 0.45
 
-    // Bind wheels
-    ;(['FL', 'FR', 'RL', 'RR'] as WheelId[]).forEach((id) => {
-      const node = wheelNodes.current[id]
-      if (!node) return
-      const cfg = DEFAULT_WHEELS.find((w) => w.id === id)!
-      node.position.set(
-        cfg.localPosition.x,
-        cfg.localPosition.y - tel.wheelTravel[id] * 0.85,
-        cfg.localPosition.z,
-      )
-      node.rotation.set(tel.wheelSpin[id], tel.wheelSteer[id], 0)
-    })
+    // RWD drive — isaac-mason pattern
+    controller.setWheelEngineForce(2, engineForce)
+    controller.setWheelEngineForce(3, engineForce)
+    controller.setWheelEngineForce(0, 0)
+    controller.setWheelEngineForce(1, 0)
 
-    // Exhaust flames
+    const brakeForce = brake * BRAKE + (drifting ? 2 : 0)
+    for (let i = 0; i < 4; i++) controller.setWheelBrake(i, brakeForce)
+
+    const steerTarget = steerAxis * MAX_STEER * (1 - Math.min(speedKmh / 260, 0.7))
+    const curSteer = controller.wheelSteering(0) ?? 0
+    const steering = THREE.MathUtils.lerp(curSteer, steerTarget, 0.45)
+    controller.setWheelSteering(0, steering)
+    controller.setWheelSteering(1, steering)
+
+    // Drift: loosen rear slip (Rapier frictionSlip)
+    const rearSlip = drifting && speedKmh > 25 ? DRIFT_REAR_SLIP : NORMAL_REAR_SLIP
+    controller.setWheelFrictionSlip(2, rearSlip)
+    controller.setWheelFrictionSlip(3, rearSlip)
+
+    // Sync authored wheel meshes to physics wheel transforms (spin/steer only on local)
+    for (let i = 0; i < 4; i++) {
+      const phys = wheelsRef.current[i]
+      const vis = visualWheels.current[i]
+      if (!phys || !vis) continue
+      const spin = controller.wheelRotation(i) ?? 0
+      const st = controller.wheelSteering(i) ?? 0
+      if (i < 2) vis.rotation.y = st
+      vis.rotation.x = spin
+    }
+
     flameRefs.current.forEach((f, i) => {
-      f.visible = tel.isBoosting
-      f.scale.setScalar(tel.isBoosting ? 0.6 + Math.sin(state.clock.elapsedTime * 40 + i) * 0.25 : 0.01)
+      f.visible = boosting
+      f.scale.setScalar(boosting ? 0.6 + Math.sin(state.clock.elapsedTime * 40 + i) * 0.25 : 0.01)
     })
 
-    // Skids / smoke
-    tel.skidPoints.forEach((p) => skids.current.push({ pos: p.clone(), life: 4 }))
+    const isDrifting = drifting && speedKmh > 25 && Math.abs(steerAxis) > 0.1
+    if (isDrifting) {
+      driftCombo.current += clampedDt
+      const t = rb.translation()
+      skids.current.push({ pos: new THREE.Vector3(t.x, 0.02, t.z), life: 3.5 })
+    } else {
+      driftCombo.current = Math.max(0, driftCombo.current - clampedDt * 2)
+    }
     skids.current = skids.current
       .map((s) => ({ ...s, life: s.life - clampedDt }))
       .filter((s) => s.life > 0)
@@ -177,17 +209,18 @@ export function HeroCar() {
       skidMesh.current.instanceMatrix.needsUpdate = true
     }
     if (smokeMesh.current) {
-      tel.smokePoints.forEach((p, i) => {
-        dummy.position.copy(p)
-        dummy.scale.setScalar(0.4 + Math.random() * 0.3)
+      const count = isDrifting ? 8 : 0
+      for (let i = 0; i < count; i++) {
+        const t = rb.translation()
+        dummy.position.set(t.x + (Math.random() - 0.5), t.y + 0.2, t.z + (Math.random() - 0.5))
+        dummy.scale.setScalar(0.35 + Math.random() * 0.25)
         dummy.updateMatrix()
-        smokeMesh.current!.setMatrixAt(i, dummy.matrix)
-      })
-      smokeMesh.current.count = tel.smokePoints.length
+        smokeMesh.current.setMatrixAt(i, dummy.matrix)
+      }
+      smokeMesh.current.count = count
       smokeMesh.current.instanceMatrix.needsUpdate = true
     }
 
-    // Checkpoints / scoring
     const waypoints = getStageWaypoints(stage)
     const t = rb.translation()
     const pos = new THREE.Vector3(t.x, t.y, t.z)
@@ -196,9 +229,9 @@ export function HeroCar() {
     let driftScore = store.driftScore
     let mult = store.driftMultiplier
     if (mode === 'freedrift') {
-      if (tel.isDrifting) {
+      if (isDrifting) {
         mult = Math.min(8, mult + clampedDt * 0.4)
-        driftScore += tel.driftScoreDelta * mult
+        driftScore += Math.floor((8 + driftCombo.current * 14) * (1 + Math.abs(steerAxis)) * mult)
       } else {
         mult = Math.max(1, mult - clampedDt * 1.2)
       }
@@ -207,10 +240,8 @@ export function HeroCar() {
     let lapTime = store.lapTime + clampedDt
     let bestLap = store.bestLap
     if (mode === 'timeattack') {
-      const target = Math.floor((checkpointIndex % waypoints.length))
-      if (cp === (target + 8) % waypoints.length) {
-        checkpointIndex += 1
-      }
+      const target = Math.floor(checkpointIndex % waypoints.length)
+      if (cp === (target + 8) % waypoints.length) checkpointIndex += 1
       if (checkpointIndex > 0 && checkpointIndex % waypoints.length === 0 && cp < 3) {
         if (!bestLap || lapTime < bestLap) bestLap = lapTime
         lapTime = 0
@@ -218,31 +249,51 @@ export function HeroCar() {
       }
     }
 
+    const floored = Math.floor(driftScore)
     setTelemetry({
-      speedKmh: tel.speedKmh,
-      rpm: tel.rpm,
-      nitro: tel.nitro,
-      isDrifting: tel.isDrifting,
-      isBoosting: tel.isBoosting,
-      driftScore: Math.floor(driftScore),
+      speedKmh,
+      rpm: 800 + Math.min(7000, speed * 180 + (boosting ? 900 : 0)),
+      nitro: nitroRef.current,
+      isDrifting,
+      isBoosting: boosting,
+      driftScore: floored,
       driftMultiplier: Number(mult.toFixed(1)),
       checkpointIndex,
       lapTime,
       bestLap,
     })
 
-    audio.update(tel.rpm, tel.isBoosting, tel.isDrifting)
+    if (floored > cashBanked.current) {
+      const gained = Math.floor((floored - cashBanked.current) / 10)
+      if (gained > 0) {
+        useGarageStore.getState().addCash(gained)
+        cashBanked.current += gained * 10
+      }
+    }
 
-    const w = window as unknown as { __playerPos?: THREE.Vector3 }
+    audio.update(800 + Math.min(7000, speed * 180), boosting, isDrifting)
+
+    const w = window as unknown as { __playerPos?: THREE.Vector3; __playerQuat?: THREE.Quaternion }
     if (!w.__playerPos) w.__playerPos = new THREE.Vector3()
+    if (!w.__playerQuat) w.__playerQuat = new THREE.Quaternion()
     w.__playerPos.set(t.x, t.y, t.z)
+    const rot = rb.rotation()
+    w.__playerQuat.set(rot.x, rot.y, rot.z, rot.w)
 
-    // Camera FOV kick
     const cam = state.camera as THREE.PerspectiveCamera
     if (cam.isPerspectiveCamera) {
-      const targetFov = tel.isBoosting ? 68 : 55
-      cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov, 0.08)
+      cam.fov = THREE.MathUtils.lerp(cam.fov, boosting ? 68 : 55, 0.08)
       cam.updateProjectionMatrix()
+    }
+
+    // Ground probe for out-of-bounds (isaac pattern)
+    const ray = new rapier.Ray(t, { x: 0, y: -1, z: 0 })
+    const hit = world.castRay(ray, 3, false, undefined, undefined, undefined, rb)
+    if (!hit && t.y < -1) {
+      const spawnPt = getStageWaypoints(stage)[0]
+      rb.setTranslation({ x: spawnPt.x, y: spawnPt.y + 0.55, z: spawnPt.z }, true)
+      rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      rb.setAngvel({ x: 0, y: 0, z: 0 }, true)
     }
   })
 
@@ -252,33 +303,45 @@ export function HeroCar() {
     <group>
       <RigidBody
         ref={body}
-        colliders="cuboid"
-        position={[spawn.x, spawn.y + 1.2, spawn.z]}
-        rotation={[0, 0, 0]}
+        colliders={false}
+        position={[spawn.x, spawn.y + 0.55, spawn.z]}
+        rotation={[0, Math.PI / 2, 0]}
         mass={1450}
-        linearDamping={0.15}
-        angularDamping={0.6}
+        linearDamping={0.25}
+        angularDamping={1.6}
+        restitution={0}
+        friction={1.1}
+        ccd
         canSleep={false}
       >
-        <group ref={group}>
-          <primitive object={car} />
-          {[
-            [-0.35, 0.35, -2.15],
-            [0.35, 0.35, -2.15],
-          ].map((p, i) => (
-            <mesh
-              key={i}
-              ref={(el) => {
-                if (el) flameRefs.current[i] = el
-              }}
-              position={p as [number, number, number]}
-              visible={false}
-            >
-              <coneGeometry args={[0.08, 0.45, 8]} />
-              <meshStandardMaterial color="#ff6a00" emissive="#ff3b00" emissiveIntensity={8} toneMapped={false} />
-            </mesh>
-          ))}
-        </group>
+        <CuboidCollider args={[0.95, 0.38, 2.1]} position={[0, 0.52, 0]} friction={1.1} restitution={0} />
+        <primitive object={car} />
+        {/* Physics wheel anchors (isaac-mason visual sync targets) */}
+        {STREET_WHEELS.map((wheel, index) => (
+          <group
+            key={index}
+            ref={(el) => {
+              wheelsRef.current[index] = el
+            }}
+            position={wheel.position.toArray() as [number, number, number]}
+          />
+        ))}
+        {[
+          [-0.35, 0.35, -2.15],
+          [0.35, 0.35, -2.15],
+        ].map((p, i) => (
+          <mesh
+            key={i}
+            ref={(el) => {
+              if (el) flameRefs.current[i] = el
+            }}
+            position={p as [number, number, number]}
+            visible={false}
+          >
+            <coneGeometry args={[0.08, 0.45, 8]} />
+            <meshStandardMaterial color="#ff6a00" emissive="#ff3b00" emissiveIntensity={8} toneMapped={false} />
+          </mesh>
+        ))}
       </RigidBody>
 
       <instancedMesh ref={skidMesh} args={[undefined, undefined, 200]}>

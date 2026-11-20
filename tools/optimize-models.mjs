@@ -18,6 +18,11 @@ for (const file of files) {
   const before = statSync(input).size
   console.log(`\nOptimizing ${file} (${(before / 1024).toFixed(1)} KB)...`)
   // Keep node hierarchy (Wheel_*, Collider_*, Visual_*) — do not flatten/join.
+  // Mobile budget: max 1024px WebP textures for all assets.
+  const texSize = 1024
+
+  // world_map / photogrammetry: NEVER simplify — it nukes UVs into grey atlas islands
+  const isWorld = file.startsWith('world_') || file.includes('city_track')
   execSync(
     [
       'npx gltf-transform optimize',
@@ -25,10 +30,12 @@ for (const file of files) {
       `"${output}"`,
       '--compress draco',
       '--texture-compress webp',
-      '--texture-size 2048',
+      `--texture-size ${texSize}`,
       '--flatten false',
       '--join false',
       '--instance false',
+      // prune false keeps Empty/proxy marker nodes for world maps
+  isWorld ? '--simplify false --prune false' : '--simplify-ratio 0.5',
     ].join(' '),
     { stdio: 'inherit' },
   )

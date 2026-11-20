@@ -1,18 +1,23 @@
 import { create } from 'zustand'
+import { DEFAULT_STAGE, type StageId } from '../world/stages'
 
 export type GameMode = 'timeattack' | 'freedrift'
 export type CameraMode = 'chase' | 'hood' | 'cinematic'
-export type StageId = 'stage1' | 'stage2'
 export type Screen = 'menu' | 'playing'
-
+export type QualityPreset = 'low' | 'medium' | 'high'
 export type PaintId = 'crimson' | 'midnight' | 'pearl' | 'lime'
+export type MenuTab = 'circuits' | 'garage' | 'options'
+
+export type { StageId }
 
 type GameState = {
   screen: Screen
+  menuTab: MenuTab
   stage: StageId
   mode: GameMode
   camera: CameraMode
   paint: PaintId
+  quality: QualityPreset
   speedKmh: number
   rpm: number
   nitro: number
@@ -24,9 +29,11 @@ type GameState = {
   lapTime: number
   bestLap: number
   setScreen: (screen: Screen) => void
+  setMenuTab: (tab: MenuTab) => void
   setStage: (stage: StageId) => void
   setMode: (mode: GameMode) => void
   setPaint: (paint: PaintId) => void
+  setQuality: (quality: QualityPreset) => void
   toggleCamera: () => void
   setTelemetry: (partial: Partial<GameState>) => void
   resetRun: () => void
@@ -44,10 +51,12 @@ export const PAINT_COLORS: Record<PaintId, string> = {
 
 export const useGameStore = create<GameState>((set, get) => ({
   screen: 'menu',
-  stage: 'stage1',
+  menuTab: 'circuits',
+  stage: DEFAULT_STAGE,
   mode: 'freedrift',
   camera: 'chase',
   paint: 'crimson',
+  quality: 'medium',
   speedKmh: 0,
   rpm: 800,
   nitro: 100,
@@ -59,9 +68,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   lapTime: 0,
   bestLap: 0,
   setScreen: (screen) => set({ screen }),
+  setMenuTab: (menuTab) => set({ menuTab }),
   setStage: (stage) => set({ stage }),
   setMode: (mode) => set({ mode }),
   setPaint: (paint) => set({ paint }),
+  setQuality: (quality) => set({ quality }),
   toggleCamera: () => {
     const i = cameras.indexOf(get().camera)
     set({ camera: cameras[(i + 1) % cameras.length] })

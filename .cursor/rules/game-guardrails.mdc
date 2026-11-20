@@ -1,0 +1,50 @@
+---
+description: Neon City Racer — mandatory production guardrails for assets, physics, mobile budget, and phase gates
+alwaysApply: true
+---
+
+# Neon City Racer — Game Guardrails
+
+These rules are **mandatory** for every agent turn on this project. Do not weaken, skip, or reinterpret them.
+
+## Rule 1 — Zero Procedural Primitives
+
+- **NEVER** create cars, buildings, tracks, characters, or props using Three.js `boxGeometry` / `cylinderGeometry` / `sphereGeometry` (or similar) as the final visual asset.
+- **NEVER** sculpt production visuals with Blender Python primitives (`bpy.ops.mesh.primitive_*`) as the final asset.
+- Every 3D visual asset **MUST** be a real game-ready model sourced from **Sketchfab** or **Poly Haven** via **Blender MCP** (`search_assets` → `import_asset`).
+- Invisible physics helpers (e.g. a thin Rapier cuboid collider under a Sketchfab car) are allowed only when they are not the visible mesh.
+
+## Rule 2 — Strict Car Axis & Wheel Standard
+
+Every car exported from Blender **MUST**:
+
+1. Face **`-Y` in Blender** (`+Z` forward in Three.js / glTF Y-up).
+2. Have its **lowest tire point at `Z = 0.0`** in Blender (never sunk below the ground grid).
+3. Keep `Wheel_FL`, `Wheel_FR`, `Wheel_RL`, `Wheel_RR` **inside their exact wheel-arch sockets**.
+4. Center each wheel empty/pivot **origin in mesh-data space** so **world coordinates of the wheel do not shift** when parenting — never translate wheels outward into empty space or to guessed socket positions.
+
+## Rule 3 — Zero Guessed Coordinates
+
+- Parse all spawn / lane / sidewalk points from Blender **`Empty` markers** inside `public/models/world_map.glb`:
+  - `Spawn_Player`
+  - `Traffic_Lane_A_*` / `Traffic_Lane_B_*`
+  - `Pedestrian_Path_*`
+- Runtime **MUST NOT** invent world positions for spawn, traffic, or pedestrians.
+- Snap vehicles to asphalt with **downward Rapier raycasts** from marker positions (tires flush on the surface).
+
+## Rule 4 — Mobile 60 FPS & Offline Budget
+
+- Total compressed `.glb` gameplay assets must stay **under 30 MB**.
+- Optimize with `npx gltf-transform optimize` (**Draco** geometry + **1024px WebP** textures) before shipping new GLBs.
+- Canvas DPR must be clamped: `dpr={[1, 1.5]}` (never uncapped).
+- Use `<BakeShadows />` and `<Preload all />` for static world lighting / asset warm-up where applicable.
+- Keep the app **100% functional offline** via `vite-plugin-pwa` (precached GLBs, HDR, JS bundles).
+
+## Rule 5 — Mandatory Gate Verification
+
+After **EVERY** phase:
+
+1. Run `npm run build` — **zero** TypeScript / build errors.
+2. Run a **Playwright** visual + console check (desktop and/or mobile viewport as specified by the phase).
+3. Only then commit to Git and move to the next phase.
+4. If any check fails: **self-heal immediately** before proceeding. Do not advance on a red gate.

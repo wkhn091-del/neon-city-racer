@@ -1,69 +1,124 @@
 import { useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
-import { RigidBody, MeshCollider } from '@react-three/rapier'
+import { RigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
-import type { StageId } from '../store/gameStore'
+import { getStageDef, type StageId } from '../world/stages'
+import { useGameStore } from '../store/gameStore'
+import { extractWorldMarkers } from '../world/markers'
+import { setWorldMarkers } from '../world/markerCache'
 
-const STAGE_URL: Record<StageId, string> = {
-  stage1: '/models/stage1_city.glb',
-  stage2: '/models/stage2_canyon.glb',
+/**
+ * Orient → scale → center XZ → sit tires/roads on y=0.
+ * Burnout maps need rotX=π or they render upside-down in the sky.
+ */
+function normalizeWorld(root: THREE.Object3D, targetSize: number, rotX: number) {
+  if (rotX !== 0) {
+    root.rotation.x = rotX
+    root.updateMatrixWorld(true)
+  }
+
+  const box = new THREE.Box3().setFromObject(root)
+  if (box.isEmpty()) return
+  const size = box.getSize(new THREE.Vector3())
+  const longest = Math.max(size.x, size.z, 0.001)
+  root.scale.multiplyScalar(targetSize / longest)
+  root.updateMatrixWorld(true)
+
+  const box2 = new THREE.Box3().setFromObject(root)
+  const c2 = box2.getCenter(new THREE.Vector3())
+  root.position.x -= c2.x
+  root.position.z -= c2.z
+  root.position.y -= box2.min.y
+  root.updateMatrixWorld(true)
 }
 
-useGLTF.preload('/models/stage1_city.glb')
-useGLTF.preload('/models/stage2_canyon.glb')
-
 export function Stage({ stage }: { stage: StageId }) {
-  const { scene } = useGLTF(STAGE_URL[stage])
+  const def = getStageDef(stage)
+  const quality = useGameStore((s) => s.quality)
+  const { scene } = useGLTF(def.modelUrl)
 
-  const { colliderMeshes, visual } = useMemo(() => {
-    scene.updateMatrixWorld(true)
-    const colliderMeshes: THREE.Mesh[] = []
-
-    scene.traverse((obj) => {
-      const mesh = obj as THREE.Mesh
-      if (!mesh.isMesh || !mesh.name.startsWith('Collider_')) return
-      const geom = mesh.geometry.clone()
-      geom.applyMatrix4(mesh.matrixWorld)
-      geom.computeVertexNormals()
-      const baked = new THREE.Mesh(geom, mesh.material)
-      baked.name = mesh.name
-      baked.castShadow = false
-      baked.receiveShadow = true
-      colliderMeshes.push(baked)
-    })
-
+  const prepared = useMemo(() => {
     const visual = scene.clone(true)
+    normalizeWorld(visual, def.targetSize, def.rotX)
+
+    let meshIndex = 0
     visual.traverse((obj) => {
-      if (obj.name.startsWith('Collider_')) {
-        obj.visible = false
-      } else if ((obj as THREE.Mesh).isMesh) {
-        obj.castShadow = true
-        obj.receiveShadow = true
-      }
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh) return
+      meshIndex++
+      mesh.castShadow = quality === 'high' && meshIndex % 10 === 0
+      mesh.receiveShadow = quality !== 'low'
+      mesh.frustumCulled = true
+
+      const srcMats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      const out = srcMats.map((m) => {
+        const src = m as THREE.MeshStandardMaterial
+        const mat = src.clone()
+        if (mat.map) {
+          mat.map.colorSpace = THREE.SRGBColorSpace
+          mat.map.anisotropy = 4
+          mat.map.needsUpdate = true
+          // Photogrammetry night tiles read dark — lift via emissive map
+          if ('emissiveMap' in mat) {
+            mat.emissiveMap = mat.map
+            mat.emissive = new THREE.Color('#ffffff')
+            mat.emissiveIntensity = 0.55
+          }
+        }
+        if (mat.color) mat.color.set('#ffffff')
+        if ('envMapIntensity' in mat) mat.envMapIntensity = 1.6
+        if ('roughness' in mat) mat.roughness = Math.min(mat.roughness ?? 1, 0.92)
+        mat.needsUpdate = true
+        return mat
+      })
+      mesh.material = out.length === 1 ? out[0] : out
     })
 
-    return { colliderMeshes, visual }
-  }, [scene])
+    let markers = extractWorldMarkers(visual)
+    // Prefer a near-center spawn so chase cam isn't staring off the photogrammetry tile
+    const spawn = markers.find((m) => m.kind === 'spawn')
+    if (spawn) {
+      const dist = Math.hypot(spawn.position.x, spawn.position.z)
+      if (dist > 120) {
+        const better =
+          markers
+            .filter((m) => m.kind === 'trafficA' || m.kind === 'dealership')
+            .sort((a, b) => Math.hypot(a.position.x, a.position.z) - Math.hypot(b.position.x, b.position.z))[0] ?? spawn
+        spawn.position.copy(better.position)
+        spawn.quaternion.copy(better.quaternion)
+        spawn.forward.copy(better.forward)
+      }
+    }
+    setWorldMarkers(markers)
+    ;(window as unknown as { __worldMarkers?: typeof markers }).__worldMarkers = markers
+
+    const worldBox = new THREE.Box3().setFromObject(visual)
+    return { visual, worldBox, markers }
+  }, [scene, def.targetSize, def.rotX, quality])
+
+  const size = prepared.worldBox.getSize(new THREE.Vector3())
+  const groundSize = Math.max(160, size.x, size.z) * 1.2
+  const { rx, rz } = def.track
+  const ringOuter = Math.max(rx, rz) * 1.15
+  const ringInner = Math.min(rx, rz) * 0.62
 
   return (
     <group>
-      {/* Safety ground so the car never falls forever if trimesh fails */}
-      <RigidBody type="fixed" colliders="cuboid" position={[0, -5, 0]} friction={1.2}>
+      {/* Driveable deck ONLY — no inverted trimesh colliders that bounce the car */}
+      <RigidBody type="fixed" colliders="cuboid" position={[0, -0.35, 0]} friction={1.6} restitution={0}>
         <mesh visible={false}>
-          <boxGeometry args={[500, 2, 500]} />
+          <boxGeometry args={[groundSize, 0.7, groundSize]} />
           <meshBasicMaterial />
         </mesh>
       </RigidBody>
 
-      {colliderMeshes.map((mesh) => (
-        <RigidBody key={mesh.uuid} type="fixed" colliders={false} friction={1.4} restitution={0.02}>
-          <MeshCollider type="trimesh">
-            <primitive object={mesh} />
-          </MeshCollider>
-        </RigidBody>
-      ))}
+      {/* Subtle road ring under the circuit (visual cue, not the whole void disc) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
+        <ringGeometry args={[ringInner, ringOuter, 72]} />
+        <meshStandardMaterial color="#3d4450" roughness={0.9} metalness={0.06} />
+      </mesh>
 
-      <primitive object={visual} />
+      <primitive object={prepared.visual} />
     </group>
   )
 }

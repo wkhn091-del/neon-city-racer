@@ -1,4 +1,8 @@
 import { useGameStore } from '../store/gameStore'
+import { useGarageStore } from '../store/garageStore'
+import { getCar } from '../garage/cars'
+import { getStageDef } from '../world/stages'
+import { MobileTouchControls } from './MobileTouchControls'
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60)
@@ -20,6 +24,10 @@ export function HUD() {
   const bestLap = useGameStore((s) => s.bestLap)
   const checkpoint = useGameStore((s) => s.checkpointIndex)
   const setScreen = useGameStore((s) => s.setScreen)
+  const cash = useGarageStore((s) => s.cash)
+  const activeCar = useGarageStore((s) => s.activeCar)
+  const car = getCar(activeCar)
+  const stageDef = getStageDef(stage)
 
   const rpmPct = Math.min(100, (rpm / 8000) * 100)
   const nitroPct = Math.max(0, Math.min(100, nitro))
@@ -27,10 +35,12 @@ export function HUD() {
   return (
     <div className="hud">
       <div className="hud-top">
-        <div className="pill">{stage === 'stage1' ? 'NEON CITY' : 'MOUNTAIN TOUGE'}</div>
+        <div className="pill">{stageDef.name.toUpperCase()}</div>
         <div className="pill">{mode === 'freedrift' ? 'FREE DRIFT' : 'TIME ATTACK'}</div>
+        <div className="pill">{car.name}</div>
+        <div className="pill">${cash.toLocaleString()}</div>
         <div className="pill">CAM {camera.toUpperCase()}</div>
-        <button className="pill btn" onClick={() => setScreen('menu')}>
+        <button type="button" className="pill btn" onClick={() => setScreen('menu')}>
           MENU
         </button>
       </div>
@@ -73,7 +83,8 @@ export function HUD() {
         </div>
       </div>
 
-      <div className="hints">WASD drive · SPACE drift · SHIFT nitro · C camera</div>
+      <div className="hints">WASD drive · SPACE drift · SHIFT nitro · C camera · touch HUD on mobile</div>
+      <MobileTouchControls />
     </div>
   )
 }

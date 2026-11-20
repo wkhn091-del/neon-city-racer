@@ -1,43 +1,44 @@
 import * as THREE from 'three'
+import { getStageDef, type StageId } from '../world/stages'
+import { getLaneMarkers, getSpawnMarker } from '../world/markers'
+import { getCachedWorldMarkers } from '../world/markerCache'
 
-/** Parametric centerline matching Blender stage generators (Y-up after glTF). */
-export function stage1Waypoints(count = 120): THREE.Vector3[] {
+function oval(cx: number, cz: number, rx: number, rz: number, y: number, count: number) {
   const pts: THREE.Vector3[] = []
   for (let i = 0; i < count; i++) {
     const t = (i / count) * Math.PI * 2
-    const x = Math.cos(t) * 62 + 8 * Math.cos(2 * t)
-    const z = Math.sin(t) * 42 + 6 * Math.sin(3 * t)
-    const y = 0.8 * Math.sin(2 * t) + 0.4 * Math.cos(3 * t) + 0.5
-    pts.push(new THREE.Vector3(x, y, z))
+    pts.push(new THREE.Vector3(cx + Math.cos(t) * rx, y, cz - Math.sin(t) * rz))
   }
   return pts
 }
 
-export function stage2Waypoints(count = 160): THREE.Vector3[] {
-  const pts: THREE.Vector3[] = []
-  const start = { x: 0, y: 0, z: 0 }
-  for (let i = 0; i < count; i++) {
-    const t = i / count
-    const progress = t * Math.PI * 2 * 1.5
-    let x = Math.sin(progress) * 48 + Math.sin(progress * 2.2) * 18
-    const z = t * 220 - 110
-    const y = 18 * Math.sin(t * Math.PI) + 4 * Math.sin(t * Math.PI * 4) + 0.5
-    if ((t > 0.28 && t < 0.38) || (t > 0.62 && t < 0.72)) {
-      x += Math.sin((t - 0.28) * 40) * 12
+/** Prefer Blender Empty markers from world_map; fall back to catalog oval. */
+export function getStageWaypoints(stage: StageId, count = 160): THREE.Vector3[] {
+  const markers = getCachedWorldMarkers()
+  if (markers.length > 0) {
+    const spawn = getSpawnMarker(markers)
+    const laneA = getLaneMarkers(markers, 'A')
+    const laneB = getLaneMarkers(markers, 'B')
+    const lane = [...laneA, ...laneB]
+    if (spawn) {
+      // Always start the path at the Blender Empty spawn
+      if (lane.length >= 2) {
+        const pts: THREE.Vector3[] = [spawn.position.clone()]
+        for (let i = 1; i < count; i++) {
+          const f = ((i - 1) / (count - 1)) * lane.length
+          const i0 = Math.floor(f) % lane.length
+          const i1 = (i0 + 1) % lane.length
+          const t = f - Math.floor(f)
+          pts.push(new THREE.Vector3().lerpVectors(lane[i0].position, lane[i1].position, t))
+        }
+        return pts
+      }
+      const { track } = getStageDef(stage)
+      return oval(spawn.position.x, spawn.position.z, track.rx * 0.35, track.rz * 0.35, spawn.position.y, count)
     }
-    if (i === 0) {
-      start.x = x
-      start.y = y
-      start.z = z
-    }
-    // Match Blender root offset that grounded start at origin
-    pts.push(new THREE.Vector3(x - start.x, y - start.y + 0.5, z - start.z))
   }
-  return pts
-}
-
-export function getStageWaypoints(stage: 'stage1' | 'stage2') {
-  return stage === 'stage1' ? stage1Waypoints() : stage2Waypoints()
+  const { track } = getStageDef(stage)
+  return oval(track.cx, track.cz, track.rx, track.rz, track.y, count)
 }
 
 export function nearestWaypointIndex(pos: THREE.Vector3, waypoints: THREE.Vector3[]) {
